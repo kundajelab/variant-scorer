@@ -19,7 +19,6 @@ def main():
     print(args)
 
     out_dir = os.path.sep.join(args.out_prefix.split(os.path.sep)[:-1])
-    print(out_dir)
     if not os.path.exists(out_dir):
         raise OSError("Output directory does not exist")
 
@@ -35,11 +34,14 @@ def main():
         variants_table['chr'] = 'chr' + variants_table['chr']
 
     if args.debug_mode:
-        variants_table = variants_table.head(100000)
+        variants_table = variants_table.head(10000)
         print(variants_table.head())
 
     # infer input length
-    input_len = model.input_shape[1]
+    if args.lite:
+        input_len = model.input_shape[0][1]
+    else:
+        input_len = model.input_shape[1]
     print("input length inferred from the model: ", input_len)
 
     # fetch model prediction for variants
@@ -54,42 +56,49 @@ def main():
                                                                        bias=None)
 
     # get varaint effect scores
-    log_fold_change, profile_jsd = get_variant_scores(rsids, allele1_count_preds, allele2_count_preds, allele1_profile_preds, allele2_profile_preds)
+    log_fold_change, profile_jsd = get_variant_scores(rsids, allele1_count_preds,
+                                                      allele2_count_preds, allele1_profile_preds,
+                                                      allele2_profile_preds)
 
     # unpack rsids to write outputs and write score to output
     assert np.array_equal(variants_table["rsid"].tolist(), rsids)
-
     variants_table["log_fold_change"] = log_fold_change
     variants_table["profile_jsd"] = profile_jsd
-    variants_table.to_csv('.'.join([args.out_prefix, "variant_scores.tsv"]), sep="\t", index=False)
-
-    # store predictions at variants
-    hf = h5py.File('.'.join([args.out_prefix, "variant_predictions.h5"]), 'w')
-    
-    hf.create_dataset('allele1_count_preds', data=allele1_count_preds)
-    hf.create_dataset('allele2_count_preds', data=allele2_count_preds)
-    hf.create_dataset('allele1_profile_preds', data=allele1_profile_preds)
-    hf.create_dataset('allele2_profile_preds', data=allele2_profile_preds)
+    variants_table["allele1_pred_counts"] = allele1_count_preds
+    variants_table["allele2_pred_counts"] = allele2_count_preds
 
     if args.bias != None:
         bias = load_model_wrapper(args.bias)
         w_bias_rsids, w_bias_allele1_count_preds, w_bias_allele2_count_preds, \
         w_bias_allele1_profile_preds, w_bias_allele2_profile_preds = fetch_variant_predictions(model,
-                                                                                     variants_table,
-                                                                                     input_len,
-                                                                                     args.genome,
-                                                                                     args.batch_size,
-                                                                                     debug_mode=args.debug_mode,
-                                                                                     lite=args.lite,
-                                                                                     bias=bias)
-
+                                                                                               variants_table,
+                                                                                               input_len,
+                                                                                               args.genome,
+                                                                                               args.batch_size,
+                                                                                               debug_mode=args.debug_mode,
+                                                                                               lite=args.lite,
+                                                                                               bias=bias)
         assert np.array_equal(variants_table["rsid"].tolist(), w_bias_rsids)
+        variants_table["allele1_w_bias_pred_counts"] = w_bias_allele1_count_preds
+        variants_table["allele2_w_bias_pred_counts"] = w_bias_allele2_count_preds
 
-        hf.create_dataset('allele1_w_bias_count_preds', data=w_bias_allele1_count_preds)
-        hf.create_dataset('allele2_w_bias_count_preds', data=w_bias_allele2_count_preds)
-        hf.create_dataset('allele1_w_bias_profile_preds', data=w_bias_allele1_profile_preds)
-        hf.create_dataset('allele2_w_bias_profile_preds', data=w_bias_allele2_profile_preds)
+    variants_table.to_csv('.'.join([args.out_prefix, "variant_scores.tsv"]), sep="\t", index=False)
 
+    # store predictions at variants
+    with h5py.File('.'.join([args.out_prefix, "variant_predictions.h5"]), 'w') as f:
+        wo_bias = f.create_group('wo_bias')
+        wo_bias.create_dataset('allele1_pred_counts', data=allele1_count_preds)
+        wo_bias.create_dataset('allele2_pred_counts', data=allele2_count_preds)
+        wo_bias.create_dataset('allele1_pred_profile', data=allele1_profile_preds)
+        wo_bias.create_dataset('allele2_pred_profile', data=allele2_profile_preds)
+
+        if args.bias != None:
+            w_bias = f.create_group('w_bias')
+            w_bias.create_dataset('allele1_w_bias_pred_counts', data=w_bias_allele1_count_preds)
+            w_bias.create_dataset('allele2_w_bias_pred_counts', data=w_bias_allele2_count_preds)
+            w_bias.create_dataset('allele1_w_bias_pred_profile', data=w_bias_allele1_profile_preds)
+            w_bias.create_dataset('allele2_w_bias_pred_profile', data=w_bias_allele2_profile_preds)
+    
 def softmax(x, temp=1):
     norm_x = x - np.mean(x,axis=1, keepdims=True)
     return np.exp(temp*norm_x)/np.sum(np.exp(temp*norm_x), axis=1, keepdims=True)
@@ -176,7 +185,8 @@ def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, ba
 
         rsids.extend(batch_rsids)
 
-    return np.array(rsids), np.array(allele1_count_preds), np.array(allele2_count_preds), np.array(allele1_profile_preds), np.array(allele2_profile_preds)
+    return np.array(rsids), np.array(allele1_count_preds), np.array(allele2_count_preds), \
+           np.array(allele1_profile_preds), np.array(allele2_profile_preds)
 
 def get_variant_scores(rsids, allele1_count_preds, allele2_count_preds, allele1_profile_preds, allele2_profile_preds):
     '''
