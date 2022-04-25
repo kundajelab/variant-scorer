@@ -8,7 +8,7 @@ model=/mnt/lab_data3/soumyak/CRC_finemap/output/chrombpnet/20220124_celltype_mod
 bias=/mnt/lab_data3/soumyak/CRC_finemap/output/chrombpnet/bias_models/Myofibroblasts_2/Myofibroblasts_2.bias.2114.1000.h5
 out_prefix=/mnt/lab_data3/soumyak/variant-scorer/examples/crc.caf_fold0.all.1000G.EUR
 
-time python ../variant_scoring.py -l $list \
+time python ../src/variant_scoring.py -l $list \
                              -g $genome \
                              -m $model \
                              -o $out_prefix \

@@ -8,7 +8,7 @@ model=/srv/scratch/soumyak/neuro-variants/outs/1_31_2022_adpd_model_training/ful
 bias=/srv/scratch/soumyak/neuro-variants/outs/1_31_2022_adpd_model_training/full_models/cluster1_fold0/chrombpnet.h5
 out_prefix=/mnt/lab_data3/soumyak/variant-scorer/examples/neuro.cluster1_fold0.all.1000G.EUR
 
-time python ../variant_scoring.py -l $list \
+time python ../src/variant_scoring.py -l $list \
                              -g $genome \
                              -m $model \
                              -o $out_prefix \
