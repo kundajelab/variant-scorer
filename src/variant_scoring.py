@@ -34,7 +34,7 @@ def main():
         variants_table['chr'] = 'chr' + variants_table['chr']
 
     if args.debug_mode:
-        variants_table = variants_table.head(10000)
+        variants_table = variants_table.head(10)
         print(variants_table.head())
 
     # infer input length

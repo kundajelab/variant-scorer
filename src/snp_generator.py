@@ -46,10 +46,11 @@ class SNPGenerator(Sequence):
             cur_allele2_seq = str(flank)[:flank_size] + allele2 + str(flank)[flank_size+1:]
 
             #if self.debug_mode:
-                #print("allele1:")
-                #print(cur_allele1_seq)
-                #print("allele2:")
-                #print(cur_allele2_seq)
+            #    print(rsid)
+            #    print("allele1:")
+            #    print(cur_allele1_seq[flank_size-5:flank_size+5])
+            #    print("allele2:")
+            #    print(cur_allele2_seq[flank_size-5:flank_size+5])
            
             allele1_seqs.append(cur_allele1_seq)
             allele2_seqs.append(cur_allele2_seq)
