@@ -41,7 +41,7 @@ class SNPGenerator(Sequence):
             flank_start = int(pos - flank_size)
             flank_end = int(pos + (flank_size - 1))
             flank = str(self.genome.get_seq(chrom, flank_start, flank_end))
-            assert len(flank) == self.input_len
+            assert len(flank) == self.input_len, str(len(flank)) + '_' + str(self.input_len)
             cur_allele1_seq = str(flank)[:flank_size] + allele1 + str(flank)[flank_size+1:]
             cur_allele2_seq = str(flank)[:flank_size] + allele2 + str(flank)[flank_size+1:]
 
