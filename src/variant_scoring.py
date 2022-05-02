@@ -33,8 +33,11 @@ def main():
     if not has_chr_prefix:
         variants_table['chr'] = 'chr' + variants_table['chr']
 
+    chrom_sizes = pd.read_csv(args.chrom_sizes, header=None, sep='\t', names=['chrom', 'size'])
+    chrom_sizes_dict = chrom_sizes.set_index('chrom')['size'].to_dict()
+
     if args.debug_mode:
-        variants_table = variants_table.head(10)
+        variants_table = variants_table.head(100000)
         print(variants_table.head())
 
     # infer input length
@@ -43,6 +46,11 @@ def main():
     else:
         input_len = model.input_shape[1]
     print("input length inferred from the model: ", input_len)
+
+    print(variants_table.shape)
+    variants_table = variants_table.loc[variants_table.apply(lambda x: get_valid_variants(x.chr, x.pos, input_len, chrom_sizes_dict), axis=1)]
+    variants_table.reset_index(drop=True, inplace=True)
+    print(variants_table.shape)
 
     # fetch model prediction for variants
     rsids, allele1_count_preds, allele2_count_preds, \
@@ -59,6 +67,8 @@ def main():
     log_fold_change, profile_jsd = get_variant_scores(rsids, allele1_count_preds,
                                                       allele2_count_preds, allele1_profile_preds,
                                                       allele2_profile_preds)
+
+    ## variants_table = variants_table.loc[variants_table["rsid"].isin(rsids)]
 
     # unpack rsids to write outputs and write score to output
     assert np.array_equal(variants_table["rsid"].tolist(), rsids)
@@ -99,6 +109,13 @@ def main():
             w_bias.create_dataset('allele1_w_bias_pred_profile', data=w_bias_allele1_profile_preds)
             w_bias.create_dataset('allele2_w_bias_pred_profile', data=w_bias_allele2_profile_preds)
     
+def get_valid_variants(chrom, pos, input_len, chrom_sizes_dict):
+    flank = input_len // 2
+    lower_check = (pos - flank > 0)
+    upper_check = (pos + flank <= chrom_sizes_dict[chrom])
+    in_bounds = lower_check and upper_check
+    return in_bounds
+
 def softmax(x, temp=1):
     norm_x = x - np.mean(x,axis=1, keepdims=True)
     return np.exp(temp*norm_x)/np.sum(np.exp(temp*norm_x), axis=1, keepdims=True)
