@@ -1,3 +1,4 @@
+from turtle import pos
 from snp_generator import SNPGenerator
 from utils import argmanager, losses
 from scipy.spatial.distance import jensenshannon
@@ -9,6 +10,7 @@ import os
 import argparse
 import numpy as np
 import h5py
+import psutil
 from tqdm import tqdm
 
 SCHEMA = {'bed': ["chr", "pos", "rsid", "allele1", "allele2"],
@@ -37,7 +39,7 @@ def main():
     chrom_sizes_dict = chrom_sizes.set_index('chrom')['size'].to_dict()
 
     if args.debug_mode:
-        variants_table = variants_table.head(100000)
+        variants_table = variants_table.sample(100000)
         print(variants_table.head())
 
     # infer input length
@@ -52,62 +54,116 @@ def main():
     variants_table.reset_index(drop=True, inplace=True)
     print(variants_table.shape)
 
-    # fetch model prediction for variants
-    rsids, allele1_count_preds, allele2_count_preds, \
-    allele1_profile_preds, allele2_profile_preds = fetch_variant_predictions(model,
-                                                                       variants_table,
-                                                                       input_len,
-                                                                       args.genome,
-                                                                       args.batch_size,
-                                                                       debug_mode=args.debug_mode,
-                                                                       lite=args.lite,
-                                                                       bias=None)
+    print()
+    print("Filtered Variants")
+    print()
+    print(psutil.virtual_memory())
+    print()
 
-    # get varaint effect scores
-    log_fold_change, profile_jsd = get_variant_scores(rsids, allele1_count_preds,
-                                                      allele2_count_preds, allele1_profile_preds,
-                                                      allele2_profile_preds)
+    # split by chromosome to fit predictions in memory
+    for chrom in variants_table.chr.unique():
+        print()
+        print(chrom)
+        print()
+        print(psutil.virtual_memory())
+        print()
 
-    ## variants_table = variants_table.loc[variants_table["rsid"].isin(rsids)]
+        chrom_variants_table = variants_table.loc[variants_table['chr'] == chrom].sort_values(by='pos').copy()
+        chrom_variants_table.reset_index(drop=True, inplace=True)
+        print(chrom_variants_table.shape)
+        print()
 
-    # unpack rsids to write outputs and write score to output
-    assert np.array_equal(variants_table["rsid"].tolist(), rsids)
-    variants_table["log_fold_change"] = log_fold_change
-    variants_table["profile_jsd"] = profile_jsd
-    variants_table["allele1_pred_counts"] = allele1_count_preds
-    variants_table["allele2_pred_counts"] = allele2_count_preds
+        # fetch model prediction for variants
+        rsids, allele1_count_preds, allele2_count_preds, \
+        allele1_profile_preds, allele2_profile_preds = fetch_variant_predictions(model,
+                                                                        chrom_variants_table,
+                                                                        input_len,
+                                                                        args.genome,
+                                                                        args.batch_size,
+                                                                        debug_mode=args.debug_mode,
+                                                                        lite=args.lite,
+                                                                        bias=None)
 
-    if args.bias != None:
-        bias = load_model_wrapper(args.bias)
-        w_bias_rsids, w_bias_allele1_count_preds, w_bias_allele2_count_preds, \
-        w_bias_allele1_profile_preds, w_bias_allele2_profile_preds = fetch_variant_predictions(model,
-                                                                                               variants_table,
-                                                                                               input_len,
-                                                                                               args.genome,
-                                                                                               args.batch_size,
-                                                                                               debug_mode=args.debug_mode,
-                                                                                               lite=args.lite,
-                                                                                               bias=bias)
-        assert np.array_equal(variants_table["rsid"].tolist(), w_bias_rsids)
-        variants_table["allele1_w_bias_pred_counts"] = w_bias_allele1_count_preds
-        variants_table["allele2_w_bias_pred_counts"] = w_bias_allele2_count_preds
+        print()
+        print("Got Predictions")
+        print()
+        print(psutil.virtual_memory())
+        print()
 
-    variants_table.to_csv('.'.join([args.out_prefix, "variant_scores.tsv"]), sep="\t", index=False)
+        # get varaint effect scores
+        log_fold_change, profile_jsd = get_variant_scores(allele1_count_preds, allele2_count_preds,
+                                                        allele1_profile_preds, allele2_profile_preds)
 
-    # store predictions at variants
-    with h5py.File('.'.join([args.out_prefix, "variant_predictions.h5"]), 'w') as f:
-        wo_bias = f.create_group('wo_bias')
-        wo_bias.create_dataset('allele1_pred_counts', data=allele1_count_preds)
-        wo_bias.create_dataset('allele2_pred_counts', data=allele2_count_preds)
-        wo_bias.create_dataset('allele1_pred_profile', data=allele1_profile_preds)
-        wo_bias.create_dataset('allele2_pred_profile', data=allele2_profile_preds)
+        print()
+        print("Got Scores")
+        print()
+        print(psutil.virtual_memory())
+        print()
+
+        # unpack rsids to write outputs and write score to output
+        assert np.array_equal(chrom_variants_table["rsid"].tolist(), rsids)
+        chrom_variants_table["log_fold_change"] = log_fold_change
+        chrom_variants_table["profile_jsd"] = profile_jsd
+        chrom_variants_table["allele1_pred_counts"] = allele1_count_preds
+        chrom_variants_table["allele2_pred_counts"] = allele2_count_preds
+
+        print()
+        print("Added Scores to Table")
+        print()
+        print(psutil.virtual_memory())
+        print()
 
         if args.bias != None:
-            w_bias = f.create_group('w_bias')
-            w_bias.create_dataset('allele1_w_bias_pred_counts', data=w_bias_allele1_count_preds)
-            w_bias.create_dataset('allele2_w_bias_pred_counts', data=w_bias_allele2_count_preds)
-            w_bias.create_dataset('allele1_w_bias_pred_profile', data=w_bias_allele1_profile_preds)
-            w_bias.create_dataset('allele2_w_bias_pred_profile', data=w_bias_allele2_profile_preds)
+            bias = load_model_wrapper(args.bias)
+            w_bias_rsids, w_bias_allele1_count_preds, w_bias_allele2_count_preds, \
+            w_bias_allele1_profile_preds, w_bias_allele2_profile_preds = fetch_variant_predictions(model,
+                                                                                                chrom_variants_table,
+                                                                                                input_len,
+                                                                                                args.genome,
+                                                                                                args.batch_size,
+                                                                                                debug_mode=args.debug_mode,
+                                                                                                lite=args.lite,
+                                                                                                bias=bias)
+            assert np.array_equal(chrom_variants_table["rsid"].tolist(), w_bias_rsids)
+            chrom_variants_table["allele1_w_bias_pred_counts"] = w_bias_allele1_count_preds
+            chrom_variants_table["allele2_w_bias_pred_counts"] = w_bias_allele2_count_preds
+
+        print()
+        print("Got Bias Predictions")
+        print()
+        print(psutil.virtual_memory())
+        print()
+
+        chrom_variants_table.to_csv('.'.join([args.out_prefix, chrom, "variant_scores.tsv"]), sep="\t", index=False)
+
+        print()
+        print("Wrote Score Table")
+        print()
+        print(psutil.virtual_memory())
+        print()
+
+        # store predictions at variants
+        with h5py.File('.'.join([args.out_prefix, chrom, "variant_predictions.h5"]), 'w') as f:
+            wo_bias = f.create_group('wo_bias')
+            wo_bias.create_dataset('allele1_pred_counts', data=allele1_count_preds)
+            wo_bias.create_dataset('allele2_pred_counts', data=allele2_count_preds)
+            wo_bias.create_dataset('allele1_pred_profile', data=allele1_profile_preds)
+            wo_bias.create_dataset('allele2_pred_profile', data=allele2_profile_preds)
+
+            if args.bias != None:
+                w_bias = f.create_group('w_bias')
+                w_bias.create_dataset('allele1_w_bias_pred_counts', data=w_bias_allele1_count_preds)
+                w_bias.create_dataset('allele2_w_bias_pred_counts', data=w_bias_allele2_count_preds)
+                w_bias.create_dataset('allele1_w_bias_pred_profile', data=w_bias_allele1_profile_preds)
+                w_bias.create_dataset('allele2_w_bias_pred_profile', data=w_bias_allele2_profile_preds)
+
+        print()
+        print("Wrote Predictions HDF5")
+        print()
+        print(psutil.virtual_memory())
+        print()
+
+    print("DONE")
     
 def get_valid_variants(chrom, pos, input_len, chrom_sizes_dict):
     flank = input_len // 2
@@ -129,24 +185,6 @@ def load_model_wrapper(model_file):
     return model
 
 def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, batch_size, debug_mode=False, lite=False, bias=None):
-    '''
-    Returns model predictions (counts and profile probability predictions) at the given variant alleles.
-
-    Arguments::
-        model: chrombpnet model .h5 file to use for variant scoring
-        variants_table: pandas dataframe with the following columns "chr", "pos", "rsid", "allele1", "allele2"
-        input_len: integer representing the input length to use
-        genome_fasta: path to reference genome
-        batch_size: integer value with batch size to use for the model
-        debug_mode: boolean value used to print additional info for sanity checks
-    
-    Returns:
-       rsids: rsid of all scored variants
-       allele1_count_preds: log count predictions at allele1 with size (N,)
-       allele2_count_preds: log count predictions at allele2 with size (N,)
-       allele1_profile_preds: profile probability predictions at allele1 with size (N, output_len). output_len depends on the model
-       allele2_profile_preds:  profile probability predictions at allele2 with size (N, output_len). output_len depends on the model
-    '''
     rsids = []
     allele1_count_preds = []
     allele2_count_preds = []
@@ -205,20 +243,7 @@ def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, ba
     return np.array(rsids), np.array(allele1_count_preds), np.array(allele2_count_preds), \
            np.array(allele1_profile_preds), np.array(allele2_profile_preds)
 
-def get_variant_scores(rsids, allele1_count_preds, allele2_count_preds, allele1_profile_preds, allele2_profile_preds):
-    '''
-    Predicts variant effect scores based on model predictions.
-
-    Arguments::
-       allele1_count_preds: count predictions at allele1 with size (N,)
-       allele2_count_preds: count predictions at allele2 with size (N,)
-       allele1_profile_preds: profile probability predictions at allele1 with size (N,output_len). output_len depends on the model.
-       allele2_profile_preds:  profile probability predictions at allele2 with size (N,output_len). output_len depends on the model.
-    
-    Returns:
-        log_fold_change: log2 of fold change betwee allele1 and allele2 (N,)
-        profile_jsd: Jensen-shannon distance between probability predictions of allele1 and allele2 (N,)
-    '''
+def get_variant_scores(allele1_count_preds, allele2_count_preds, allele1_profile_preds, allele2_profile_preds):
     log_fold_change = np.log2(allele2_count_preds / allele1_count_preds)
     profile_jsd_diff = np.array([jensenshannon(x,y) for x,y in zip(allele2_profile_preds, allele1_profile_preds)])
 
