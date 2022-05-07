@@ -60,7 +60,9 @@ def main():
     print(psutil.virtual_memory())
     print()
 
-    todo_chroms = [x for x in variants_table.chr.unique() if not os.path.exists('.'.join([args.out_prefix, chrom, "variant_predictions.h5"]))]
+    todo_chroms = [x for x in variants_table.chr.unique() if not os.path.exists('.'.join([args.out_prefix, x, "variant_predictions.h5"]))]
+
+    assert len(todo_chroms) < 10
 
     # split by chromosome to fit predictions in memory
     for chrom in todo_chroms:
