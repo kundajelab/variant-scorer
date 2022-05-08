@@ -63,6 +63,11 @@ def main():
     variants_table.reset_index(drop=True, inplace=True)
     print(variants_table.shape)
 
+    print(peaks.shape)
+    peaks = peaks.loc[peaks.apply(lambda x: get_valid_peaks(x.chr, x.pos, x.summit, input_len, chrom_sizes_dict), axis=1)]
+    peaks.reset_index(drop=True, inplace=True)
+    print(peaks.shape)
+
     # fetch model prediction for variants
     rsids, allele1_count_preds, allele2_count_preds, \
     allele1_profile_preds, allele2_profile_preds = fetch_variant_predictions(model,
@@ -218,6 +223,13 @@ def poisson_pval(allele1_counts, allele2_counts):
     else:
         pval = scipy.stats.poisson.cdf(allele2_counts, allele1_counts)
     return pval
+
+def get_valid_peaks(chrom, pos, summit, input_len, chrom_sizes_dict):
+    flank = input_len // 2
+    lower_check = ((pos + summit) - flank > 0)
+    upper_check = ((pos + summit) + flank <= chrom_sizes_dict[chrom])
+    in_bounds = lower_check and upper_check
+    return in_bounds
 
 def get_valid_variants(chrom, pos, input_len, chrom_sizes_dict):
     flank = input_len // 2
