@@ -42,9 +42,14 @@ def main():
     chrom_sizes = pd.read_csv(args.chrom_sizes, header=None, sep='\t', names=['chrom', 'size'])
     chrom_sizes_dict = chrom_sizes.set_index('chrom')['size'].to_dict()
 
+    peaks = pd.read_csv(args.peaks, header=None, sep='\t', names=SCHEMA['narrowpeak'])
+    peaks.sort_values(by=['chr', 'start', 'end', 'rank'], ascending=[True, True, True, False], inplace=True)
+    peaks.drop_duplicates(subset=['chr', 'start', 'end'], inplace=True)
+
     if args.debug_mode:
-        variants_table = variants_table.sample(100000)
+        variants_table = variants_table.sample(1000)
         print(variants_table.head())
+        peaks = peaks.sample(1000)
 
     # infer input length
     if args.lite:
@@ -81,10 +86,6 @@ def main():
                                                                             bias=None,
                                                                             shuf=True)
 
-    peaks = pd.read_csv(args.peaks, header=None, sep='\t', names=SCHEMA['narrowpeak'])
-    peaks.sort_values(by=['chr', 'start', 'end', 'rank'], ascending=[True, True, True, False], inplace=True)
-    peaks.drop_duplicates(subset=['chr', 'start', 'end'], inplace=True)
-
     count_preds, profile_preds = fetch_peak_predictions(model,
                                                         peaks,
                                                         input_len,
@@ -111,6 +112,7 @@ def main():
     variants_table["allele2_pred_counts"] = allele2_count_preds
     variants_table["allele1_percentile"] = allele1_percentile
     variants_table["allele2_percentile"] = allele2_percentile
+    variants_table["max_percentile"] = variants_table[["allele1_percentile", "allele2_percentile"]].max(axis=1)
     variants_table["percentile_change"] = percentile_change
 
     variants_table["log_fold_change_pval"] = variants_table["log_fold_change"].apply(lambda x:
@@ -172,6 +174,7 @@ def main():
         variants_table["allele2_pred_counts_w_bias"] = w_bias_allele2_count_preds
         variants_table["allele1_percentile_w_bias"] = w_bias_allele1_percentile
         variants_table["allele2_percentile_w_bias"] = w_bias_allele2_percentile
+        variants_table["max_percentile_w_bias"] = variants_table[["allele1_percentile_w_bias", "allele2_percentile_w_bias"]].max(axis=1)
         variants_table["percentile_change_w_bias"] = w_bias_percentile_change
 
         variants_table["log_fold_change_w_bias_pval"] = variants_table["log_fold_change_w_bias"].apply(lambda x:

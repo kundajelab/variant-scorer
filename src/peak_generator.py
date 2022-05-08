@@ -20,6 +20,7 @@ class PeakGenerator(Sequence):
         self.genome = pyfaidx.Fasta(genome_fasta)
         self.debug_mode = debug_mode
         self.flank_size = self.input_len // 2
+        self.batch_size = batch_size
 
     def __get_seq__(self, chrom, start, summit):
         chrom = str(chrom)
@@ -31,15 +32,12 @@ class PeakGenerator(Sequence):
         return flank
 
     def __getitem__(self, idx):
-            
         cur_entries = self.peaks.iloc[idx*self.batch_size:min([self.num_peaks,(idx+1)*self.batch_size])]
-        seqs = zip(*[self.__get_seq__(x, y, z) for x,y,z in
-                     zip(cur_entries.chr, cur_entries.start, cur_entries.summit)])
-        
+        seqs = [self.__get_seq__(x, y, z) for x,y,z in
+                zip(cur_entries.chr, cur_entries.start, cur_entries.summit)]
 
-        return one_hot.dna_to_one_hot(list(seqs))
+        return one_hot.dna_to_one_hot(seqs)
 
     def __len__(self):
         return math.ceil(self.num_peaks/self.batch_size)
 
-    

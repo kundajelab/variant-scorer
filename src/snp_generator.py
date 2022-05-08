@@ -44,24 +44,21 @@ class SNPGenerator(Sequence):
         return allele1_seq, allele2_seq
 
     def __getitem__(self, idx):
-            
         cur_entries = self.variants_table.iloc[idx*self.batch_size:min([self.num_variants,(idx+1)*self.batch_size])]
         rsids = cur_entries['rsid'].tolist()
 
         if self.shuf:
             rsids = np.repeat(rsids, 10)
-            allele1_seqs, allele2_seqs = zip(*[self.__get_allele_seq__(w, x, y, z) for w,x,y,z in
+            allele1_seqs, allele2_seqs = zip(*[self.__get_allele_seq__(v, w, x, y, z) for v,w,x,y,z in
                                              zip(np.repeat(cur_entries.chr, 10), np.repeat(cur_entries.pos, 10),
                                                  np.repeat(cur_entries.allele1, 10), np.repeat(cur_entries.allele2, 10),
                                                  np.tile([1234, 1111, 2222, 3333, 4444, 5555, 6666, 7777, 8888, 9999], len(cur_entries)))])
         else:
             allele1_seqs, allele2_seqs = zip(*[self.__get_allele_seq__(w, x, y, z) for w,x,y,z in
                                              zip(cur_entries.chr, cur_entries.pos, cur_entries.allele1, cur_entries.allele2)])
-        
 
         return rsids, one_hot.dna_to_one_hot(list(allele1_seqs)), one_hot.dna_to_one_hot(list(allele2_seqs))
 
     def __len__(self):
         return math.ceil(self.num_variants/self.batch_size)
 
-    
