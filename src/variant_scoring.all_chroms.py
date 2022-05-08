@@ -64,7 +64,7 @@ def main():
     print(variants_table.shape)
 
     print(peaks.shape)
-    peaks = peaks.loc[peaks.apply(lambda x: get_valid_peaks(x.chr, x.pos, x.summit, input_len, chrom_sizes_dict), axis=1)]
+    peaks = peaks.loc[peaks.apply(lambda x: get_valid_peaks(x.chr, x.start, x.summit, input_len, chrom_sizes_dict), axis=1)]
     peaks.reset_index(drop=True, inplace=True)
     print(peaks.shape)
 
