@@ -14,6 +14,8 @@ import numpy as np
 import h5py
 import psutil
 from tqdm import tqdm
+from plotnine import *
+import statsmodels
 
 
 SCHEMA = {'bed': ["chr", "pos", "rsid", "allele1", "allele2"],
@@ -81,7 +83,8 @@ def main():
                                                                             debug_mode=args.debug_mode,
                                                                             lite=args.lite,
                                                                             bias=None,
-                                                                            shuf=False)
+                                                                            shuf=False,
+                                                                            num_shuf=args.num_shuf)
 
     shuf_rsids, shuf_allele1_count_preds, shuf_allele2_count_preds, \
     shuf_allele1_profile_preds, shuf_allele2_profile_preds = fetch_variant_predictions(model,
@@ -92,7 +95,8 @@ def main():
                                                                             debug_mode=args.debug_mode,
                                                                             lite=args.lite,
                                                                             bias=None,
-                                                                            shuf=True)
+                                                                            shuf=True,
+                                                                            num_shuf=args.num_shuf)
 
     count_preds, profile_preds = fetch_peak_predictions(model,
                                                         peaks,
@@ -130,6 +134,8 @@ def main():
                                                                              1 - (scipy.stats.percentileofscore(shuf_profile_jsd, x) / 100))
     variants_table["poisson_pval"] = variants_table.apply(lambda x:
                                                           poisson_pval(x.allele1_pred_counts, x.allele2_pred_counts), axis=1)
+    variants_table["poisson_pval_bh"] = statsmodels.stats.multitest.multipletests(variants_table["poisson_pval"].tolist(),
+                                                                                  method='fdr_bh')[1]
     variants_table["percentile_change_pval"] = variants_table["percentile_change"].apply(lambda x:
                                                                                          2 * min(scipy.stats.percentileofscore(shuf_percentile_change, x) / 100,
                                                                                                  1 - (scipy.stats.percentileofscore(shuf_percentile_change, x) / 100)))
@@ -145,7 +151,8 @@ def main():
                                                                                             debug_mode=args.debug_mode,
                                                                                             lite=args.lite,
                                                                                             bias=bias,
-                                                                                            shuf=False)
+                                                                                            shuf=False,
+                                                                                            num_shuf=args.num_shuf)
 
         shuf_w_bias_rsids, shuf_w_bias_allele1_count_preds, shuf_w_bias_shuf_allele2_count_preds, \
         shuf_w_bias_allele1_profile_preds, shuf_w_bias_allele2_profile_preds = fetch_variant_predictions(model,
@@ -156,7 +163,8 @@ def main():
                                                                                                         debug_mode=args.debug_mode,
                                                                                                         lite=args.lite,
                                                                                                         bias=bias,
-                                                                                                        shuf=True)
+                                                                                                        shuf=True,
+                                                                                                        num_shuf=args.num_shuf)
 
         w_bias_count_preds, w_bias_profile_preds = fetch_peak_predictions(model,
                                                                         peaks,
@@ -257,7 +265,7 @@ def fetch_peak_predictions(model, peaks, input_len, genome_fasta, batch_size, de
     count_preds = []
     profile_preds = []
 
-    # snp sequence generator 
+    # peak sequence generator
     peak_gen = PeakGenerator(peaks=peaks,
                              input_len=input_len,
                              genome_fasta=genome_fasta,
@@ -292,20 +300,21 @@ def fetch_peak_predictions(model, peaks, input_len, genome_fasta, batch_size, de
 
     return np.array(count_preds), np.array(profile_preds)
 
-def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, batch_size, debug_mode=False, lite=False, bias=None, shuf=False):
+def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, batch_size, debug_mode=False, lite=False, bias=None, shuf=False, num_shuf=10):
     rsids = []
     allele1_count_preds = []
     allele2_count_preds = []
     allele1_profile_preds = []
     allele2_profile_preds = []
 
-    # snp sequence generator 
+    # snp sequence generator
     snp_gen = SNPGenerator(variants_table=variants_table,
                            input_len=input_len,
                            genome_fasta=genome_fasta,
                            batch_size=batch_size,
                            debug_mode=debug_mode,
-                           shuf=shuf)
+                           shuf=shuf,
+                           num_shuf=num_shuf)
 
     for i in tqdm(range(len(snp_gen))):
 

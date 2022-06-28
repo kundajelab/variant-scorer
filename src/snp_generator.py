@@ -13,7 +13,8 @@ class SNPGenerator(Sequence):
                  genome_fasta,
                  batch_size=512,
                  debug_mode=False,
-                 shuf=False):
+                 shuf=False,
+                 num_shuf=10):
 
         self.variants_table = variants_table
         self.num_variants = self.variants_table.shape[0]
@@ -22,6 +23,7 @@ class SNPGenerator(Sequence):
         self.debug_mode = debug_mode
         self.flank_size = self.input_len // 2
         self.shuf = shuf
+        self.num_shuf = num_shuf
         if self.shuf:
             self.batch_size = 32
         else:
@@ -48,11 +50,16 @@ class SNPGenerator(Sequence):
         rsids = cur_entries['rsid'].tolist()
 
         if self.shuf:
-            rsids = np.repeat(rsids, 10)
+            rsids = np.repeat(rsids, self.num_shuf)
             allele1_seqs, allele2_seqs = zip(*[self.__get_allele_seq__(v, w, x, y, z) for v,w,x,y,z in
-                                             zip(np.repeat(cur_entries.chr, 10), np.repeat(cur_entries.pos, 10),
-                                                 np.repeat(cur_entries.allele1, 10), np.repeat(cur_entries.allele2, 10),
-                                                 np.tile([1234, 1111, 2222, 3333, 4444, 5555, 6666, 7777, 8888, 9999], len(cur_entries)))])
+                                             zip(np.repeat(cur_entries.chr, self.num_shuf), np.repeat(cur_entries.pos, self.num_shuf),
+                                                 np.repeat(cur_entries.allele1, self.num_shuf), np.repeat(cur_entries.allele2, self.num_shuf),
+                                                 np.tile([(i + 1) * 1111 for i in range(self.num_shuf)], len(cur_entries)))])
+            # rsids = np.repeat(rsids, 2)
+            # allele1_seqs, allele2_seqs = zip(*[self.__get_allele_seq__(v, w, x, y, z) for v,w,x,y,z in
+            #                                  zip(np.repeat(cur_entries.chr, 2), np.repeat(cur_entries.pos, 2),
+            #                                      np.repeat(cur_entries.allele1, 2), np.repeat(cur_entries.allele2, 2),
+            #                                      np.tile([1234, 5678], len(cur_entries)))])
         else:
             allele1_seqs, allele2_seqs = zip(*[self.__get_allele_seq__(w, x, y, z) for w,x,y,z in
                                              zip(cur_entries.chr, cur_entries.pos, cur_entries.allele1, cur_entries.allele2)])

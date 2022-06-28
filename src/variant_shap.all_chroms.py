@@ -149,8 +149,8 @@ def fetch_shap(model, variants_table, input_len, genome_fasta, batch_size, debug
             allele2_counts_shap_batch = profile_model_counts_explainer.shap_values(
                 allele2_input, progress_message=10)
 
-            allele1_counts_shap_batch = allele1_counts_shap_batch * allele1_inputs
-            allele2_counts_shap_batch = allele2_counts_shap_batch * allele2_inputs
+            allele1_counts_shap_batch = allele1_counts_shap_batch * allele1_input
+            allele2_counts_shap_batch = allele2_counts_shap_batch * allele2_input
 
         allele1_counts_shap.extend(allele1_counts_shap_batch)
         allele2_counts_shap.extend(allele2_counts_shap_batch)
