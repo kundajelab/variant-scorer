@@ -109,11 +109,11 @@ def main():
 
     # get varaint effect scores
     log_fold_change, profile_jsd, \
-    allele1_percentile, allele2_percentile, percentile_change = get_variant_scores(allele1_count_preds, allele2_count_preds,
+    allele1_percentile, allele2_percentile, wilcoxon_pvals, percentile_change = get_variant_scores(allele1_count_preds, allele2_count_preds,
                                                                                     allele1_profile_preds, allele2_profile_preds, count_preds)
 
     shuf_log_fold_change, shuf_profile_jsd, \
-    shuf_allele1_percentile, shuf_allele2_percentile, shuf_percentile_change = get_variant_scores(shuf_allele1_count_preds, shuf_allele2_count_preds,
+    shuf_allele1_percentile, shuf_allele2_percentile, shuf_wilcoxon_pvals, shuf_percentile_change = get_variant_scores(shuf_allele1_count_preds, shuf_allele2_count_preds,
                                                                                     shuf_allele1_profile_preds, shuf_allele2_profile_preds, count_preds)
 
     # unpack rsids to write outputs and write score to output
@@ -134,8 +134,15 @@ def main():
                                                                              1 - (scipy.stats.percentileofscore(shuf_profile_jsd, x) / 100))
     variants_table["poisson_pval"] = variants_table.apply(lambda x:
                                                           poisson_pval(x.allele1_pred_counts, x.allele2_pred_counts), axis=1)
+    variants_table["poisson_pval_best"] = variants_table.apply(lambda x:
+                                                               poisson_pval_best(x.allele1_pred_counts, x.allele2_pred_counts), axis=1)
+    variants_table["poisson_pval_worst"] = variants_table.apply(lambda x:
+                                                               poisson_pval_worst(x.allele1_pred_counts, x.allele2_pred_counts), axis=1)
     variants_table["poisson_pval_bh"] = statsmodels.stats.multitest.multipletests(variants_table["poisson_pval"].tolist(),
                                                                                   method='fdr_bh')[1]
+    variants_table["wilcoxon_pval"] = wilcoxon_pvals
+    variants_table["wilcoxon_pval_bh"] = statsmodels.stats.multitest.multipletests(variants_table["wilcoxon_pval"].tolist(),
+                                                                                   method='fdr_bh')[1]
     variants_table["percentile_change_pval"] = variants_table["percentile_change"].apply(lambda x:
                                                                                          2 * min(scipy.stats.percentileofscore(shuf_percentile_change, x) / 100,
                                                                                                  1 - (scipy.stats.percentileofscore(shuf_percentile_change, x) / 100)))
@@ -233,6 +240,27 @@ def poisson_pval(allele1_counts, allele2_counts):
         pval = 1 - scipy.stats.poisson.cdf(allele2_counts, allele1_counts)
     else:
         pval = scipy.stats.poisson.cdf(allele2_counts, allele1_counts)
+    pval = pval * 2
+    return pval
+
+def poisson_pval_best(allele1_counts, allele2_counts):
+    if allele2_counts > allele1_counts:
+        pval_1 = 1 - scipy.stats.poisson.cdf(allele2_counts, allele1_counts)
+        pval_2 = scipy.stats.poisson.cdf(allele1_counts, allele2_counts)
+    else:
+        pval_1 = scipy.stats.poisson.cdf(allele2_counts, allele1_counts)
+        pval_2 = 1 - scipy.stats.poisson.cdf(allele1_counts, allele2_counts)
+    pval = min([pval_1, pval_2]) * 2
+    return pval
+
+def poisson_pval_worst(allele1_counts, allele2_counts):
+    if allele2_counts > allele1_counts:
+        pval_1 = 1 - scipy.stats.poisson.cdf(allele2_counts, allele1_counts)
+        pval_2 = scipy.stats.poisson.cdf(allele1_counts, allele2_counts)
+    else:
+        pval_1 = scipy.stats.poisson.cdf(allele2_counts, allele1_counts)
+        pval_2 = 1 - scipy.stats.poisson.cdf(allele1_counts, allele2_counts)
+    pval = max([pval_1, pval_2]) * 2
     return pval
 
 def get_valid_peaks(chrom, pos, summit, input_len, chrom_sizes_dict):
@@ -367,9 +395,17 @@ def get_variant_scores(allele1_count_preds, allele2_count_preds,
     profile_jsd_diff = np.array([jensenshannon(x,y) for x,y in zip(allele2_profile_preds, allele1_profile_preds)])
     allele1_percentile = np.array([np.mean(count_preds < x) for x in allele1_count_preds])
     allele2_percentile = np.array([np.mean(count_preds < x) for x in allele2_count_preds])
+    allele1_preds = np.expand_dims(allele1_count_preds, axis=1) * allele1_profile_preds
+    allele2_preds = np.expand_dims(allele2_count_preds, axis=1) * allele2_profile_preds
+
+    wilcoxon_pvals = []
+    for i in range(len(allele1_preds)):
+        wilcoxon_pvals.append(scipy.stats.ranksums(allele1_preds[i],
+                                                   allele2_preds[i])[1])
+
     percentile_change = allele2_percentile - allele1_percentile
 
-    return log_fold_change, profile_jsd_diff, allele1_percentile, allele2_percentile, percentile_change
+    return log_fold_change, profile_jsd_diff, allele1_percentile, allele2_percentile, wilcoxon_pvals, percentile_change
 
 if __name__ == "__main__":
     main()

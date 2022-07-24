@@ -28,6 +28,9 @@ def main():
     print(args)
 
     out_dir = os.path.sep.join(args.out_prefix.split(os.path.sep)[:-1])
+    print()
+    print('out_dir:', out_dir)
+    print()
     if not os.path.exists(out_dir):
         raise OSError("Output directory does not exist")
 
@@ -131,8 +134,8 @@ def fetch_shap(model, variants_table, input_len, genome_fasta, batch_size, debug
             allele2_counts_shap_batch = profile_model_counts_explainer.shap_values(
                 allele2_input, progress_message=10)
 
-            allele1_counts_shap_batch = allele1_counts_shap_batch * allele1_inputs
-            allele2_counts_shap_batch = allele2_counts_shap_batch * allele2_inputs
+            allele1_counts_shap_batch = allele1_counts_shap_batch[0] * allele1_input[0]
+            allele2_counts_shap_batch = allele2_counts_shap_batch[0] * allele2_input[0]
 
         else:
             counts_model_input = model.input
