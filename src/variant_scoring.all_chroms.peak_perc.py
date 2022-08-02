@@ -14,8 +14,7 @@ import numpy as np
 import h5py
 import psutil
 from tqdm import tqdm
-from plotnine import *
-import statsmodels
+import statsmodels.stats.multitest
 
 
 SCHEMA = {'bed': ["chr", "pos", "rsid", "allele1", "allele2"],
@@ -140,9 +139,6 @@ def main():
                                                                poisson_pval_worst(x.allele1_pred_counts, x.allele2_pred_counts), axis=1)
     variants_table["poisson_pval_bh"] = statsmodels.stats.multitest.multipletests(variants_table["poisson_pval"].tolist(),
                                                                                   method='fdr_bh')[1]
-    variants_table["wilcoxon_pval"] = wilcoxon_pvals
-    variants_table["wilcoxon_pval_bh"] = statsmodels.stats.multitest.multipletests(variants_table["wilcoxon_pval"].tolist(),
-                                                                                   method='fdr_bh')[1]
     variants_table["percentile_change_pval"] = variants_table["percentile_change"].apply(lambda x:
                                                                                          2 * min(scipy.stats.percentileofscore(shuf_percentile_change, x) / 100,
                                                                                                  1 - (scipy.stats.percentileofscore(shuf_percentile_change, x) / 100)))
