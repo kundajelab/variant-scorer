@@ -21,7 +21,8 @@ tf.compat.v1.disable_v2_behavior()
 
 SCHEMA = {'bed': ["chr", "pos", "rsid", "allele1", "allele2"],
           'plink': ["chr", "rsid", "ignore1", "pos", "allele1", "allele2"],
-          'narrowpeak': ['chr', 'start', 'end', 3, 4, 5, 6, 7, 'rank', 'summit']}
+          'narrowpeak': ['chr', 'start', 'end', 3, 4, 5, 6, 7, 'rank', 'summit'],
+          'chrombpnet': ["chr", "pos", "allele1", "allele2", "rsid"]}
 
 def main():
     args = argmanager.fetch_scoring_args()
