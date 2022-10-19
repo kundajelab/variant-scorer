@@ -50,10 +50,20 @@ def main():
     peaks.sort_values(by=['chr', 'start', 'end', 'rank'], ascending=[True, True, True, False], inplace=True)
     peaks.drop_duplicates(subset=['chr', 'start', 'end'], inplace=True)
 
+    if args.chrom:
+        variants_table = variants_table.loc[variants_table['chr'] == args.chrom]
+        args.out_prefix = args.out_prefix + '.' + args.chrom
+
     if args.debug_mode:
         variants_table = variants_table.sample(1000)
         print(variants_table.head())
         peaks = peaks.sample(1000)
+
+    num_shuf_variants = 100000
+    if len(variants_table) > num_shuf_variants:
+        shuf_variants_table = variants_table.sample(num_shuf_variants)
+    else:
+        shuf_variants_table = variants_table.copy()
 
     # infer input length
     if args.lite:
@@ -87,7 +97,7 @@ def main():
 
     shuf_rsids, shuf_allele1_count_preds, shuf_allele2_count_preds, \
     shuf_allele1_profile_preds, shuf_allele2_profile_preds = fetch_variant_predictions(model,
-                                                                            variants_table,
+                                                                            shuf_variants_table,
                                                                             input_len,
                                                                             args.genome,
                                                                             args.batch_size,
@@ -108,11 +118,11 @@ def main():
 
     # get varaint effect scores
     log_fold_change, profile_jsd, \
-    allele1_percentile, allele2_percentile, wilcoxon_pvals, percentile_change = get_variant_scores(allele1_count_preds, allele2_count_preds,
+    allele1_percentile, allele2_percentile, percentile_change = get_variant_scores(allele1_count_preds, allele2_count_preds,
                                                                                     allele1_profile_preds, allele2_profile_preds, count_preds)
 
     shuf_log_fold_change, shuf_profile_jsd, \
-    shuf_allele1_percentile, shuf_allele2_percentile, shuf_wilcoxon_pvals, shuf_percentile_change = get_variant_scores(shuf_allele1_count_preds, shuf_allele2_count_preds,
+    shuf_allele1_percentile, shuf_allele2_percentile, shuf_percentile_change = get_variant_scores(shuf_allele1_count_preds, shuf_allele2_count_preds,
                                                                                     shuf_allele1_profile_preds, shuf_allele2_profile_preds, count_preds)
 
     # unpack rsids to write outputs and write score to output
@@ -159,7 +169,7 @@ def main():
 
         shuf_w_bias_rsids, shuf_w_bias_allele1_count_preds, shuf_w_bias_shuf_allele2_count_preds, \
         shuf_w_bias_allele1_profile_preds, shuf_w_bias_allele2_profile_preds = fetch_variant_predictions(model,
-                                                                                                        variants_table,
+                                                                                                        shuf_variants_table,
                                                                                                         input_len,
                                                                                                         args.genome,
                                                                                                         args.batch_size,
@@ -393,15 +403,9 @@ def get_variant_scores(allele1_count_preds, allele2_count_preds,
     allele2_percentile = np.array([np.mean(count_preds < x) for x in allele2_count_preds])
     allele1_preds = np.expand_dims(allele1_count_preds, axis=1) * allele1_profile_preds
     allele2_preds = np.expand_dims(allele2_count_preds, axis=1) * allele2_profile_preds
-
-    wilcoxon_pvals = []
-    for i in range(len(allele1_preds)):
-        wilcoxon_pvals.append(scipy.stats.ranksums(allele1_preds[i],
-                                                   allele2_preds[i])[1])
-
     percentile_change = allele2_percentile - allele1_percentile
 
-    return log_fold_change, profile_jsd_diff, allele1_percentile, allele2_percentile, wilcoxon_pvals, percentile_change
+    return log_fold_change, profile_jsd_diff, allele1_percentile, allele2_percentile, percentile_change
 
 if __name__ == "__main__":
     main()
