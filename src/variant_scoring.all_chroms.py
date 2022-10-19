@@ -249,8 +249,8 @@ def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, ba
                 allele1_batch_preds = model.predict(allele1_seqs, verbose=False)
                 allele2_batch_preds = model.predict(allele2_seqs, verbose=False)
 
-        allele1_count_preds.extend(np.exp(np.squeeze(allele1_batch_preds[1])) - 1)
-        allele2_count_preds.extend(np.exp(np.squeeze(allele2_batch_preds[1])) - 1)
+        allele1_count_preds.extend(np.exp(np.squeeze(allele1_batch_preds[1])))
+        allele2_count_preds.extend(np.exp(np.squeeze(allele2_batch_preds[1])))
 
         allele1_profile_preds.extend(np.squeeze(softmax(allele1_batch_preds[0])))
         allele2_profile_preds.extend(np.squeeze(softmax(allele2_batch_preds[0])))
