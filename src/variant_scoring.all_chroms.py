@@ -33,8 +33,6 @@ def main():
 
     # load the variants
     variants_table = pd.read_csv(args.list, header=None, sep='\t', names=SCHEMA[args.schema])
-    if args.schema == "chrombpnet":
-        variants_table["pos"] += 1 
     variants_table.drop(columns=[x for x in variants_table.columns if x.startswith('ignore')], inplace=True)
     variants_table['chr'] = variants_table['chr'].astype(str)
     has_chr_prefix = any('chr' in x for x in variants_table['chr'].tolist())
