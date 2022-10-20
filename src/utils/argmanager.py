@@ -15,6 +15,8 @@ def update_scoring_args(parser):
     parser.add_argument("-sc", "--schema", type=str, choices=['bed', 'plink', 'chrombpnet'], default='chrombpnet', help="Format for the input variants list")
     parser.add_argument("-p", "--peaks", type=str, help="Bed file containing peak regions")
     parser.add_argument("-n", "--num_shuf", type=int, default=10, help="Number of shuffled scores for each SNP")
+    parser.add_argument("-ms", "--max_shuf", type=int, help="Maximum number of total shuffled scores to generate")
+    parser.add_argument("-mp", "--max_peaks", type=int, help="Maximum number of peaks to use for peak percentile calculation")
     parser.add_argument("-c", "--chrom", type=str, help="Only score SNPs in selected chromosome")
 
 def fetch_scoring_args():

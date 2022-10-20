@@ -1,5 +1,6 @@
 from turtle import pos
 from snp_generator import SNPGenerator
+from peak_generator import PeakGenerator
 from utils import argmanager, losses
 import scipy.stats
 from scipy.spatial.distance import jensenshannon
@@ -13,6 +14,7 @@ import numpy as np
 import h5py
 import psutil
 from tqdm import tqdm
+import statsmodels.stats.multitest
 
 
 SCHEMA = {'bed': ["chr", "pos", "rsid", "allele1", "allele2"],
@@ -42,9 +44,26 @@ def main():
     chrom_sizes = pd.read_csv(args.chrom_sizes, header=None, sep='\t', names=['chrom', 'size'])
     chrom_sizes_dict = chrom_sizes.set_index('chrom')['size'].to_dict()
 
+    peak_chrom_sizes = pd.read_csv(args.peak_chrom_sizes, header=None, sep='\t', names=['chrom', 'size'])
+    peak_chrom_sizes_dict = peak_chrom_sizes.set_index('chrom')['size'].to_dict()
+
+    peaks = pd.read_csv(args.peaks, header=None, sep='\t', names=SCHEMA['narrowpeak'])
+    peaks.sort_values(by=['chr', 'start', 'end', 'rank'], ascending=[True, True, True, False], inplace=True)
+    peaks.drop_duplicates(subset=['chr', 'start', 'end'], inplace=True)
+
+    if args.chrom:
+        variants_table = variants_table.loc[variants_table['chr'] == args.chrom]
+
     if args.debug_mode:
         variants_table = variants_table.sample(1000)
         print(variants_table.head())
+        peaks = peaks.sample(1000)
+
+    if len(variants_table) > args.max_shuf:
+        shuf_variants_table = variants_table.sample(args.max_shuf)
+        args.num_shuf = 1
+    else:
+        shuf_variants_table = variants_table.copy()
 
     # infer input length
     if args.lite:
@@ -68,25 +87,69 @@ def main():
                                                                             debug_mode=args.debug_mode,
                                                                             lite=args.lite,
                                                                             bias=None,
-                                                                            shuf=False)
+                                                                            shuf=False,
+                                                                            num_shuf=args.num_shuf)
 
     shuf_rsids, shuf_allele1_count_preds, shuf_allele2_count_preds, \
     shuf_allele1_profile_preds, shuf_allele2_profile_preds = fetch_variant_predictions(model,
-                                                                            variants_table,
+                                                                            shuf_variants_table,
                                                                             input_len,
                                                                             args.genome,
                                                                             args.batch_size,
                                                                             debug_mode=args.debug_mode,
                                                                             lite=args.lite,
                                                                             bias=None,
-                                                                            shuf=True)
+                                                                            shuf=True,
+                                                                            num_shuf=args.num_shuf)
 
-    # get varaint effect scores
-    log_fold_change, profile_jsd = get_variant_scores(allele1_count_preds, allele2_count_preds,
-                                                      allele1_profile_preds, allele2_profile_preds)
+    if args.peaks:
+        if args.peak_chrom_sizes == None:
+            args.peak_chrom_sizes = args.chrom_sizes
+        if args.peak_genome == None:
+            args.peak_genome = args.genome
 
-    shuf_log_fold_change, shuf_profile_jsd = get_variant_scores(shuf_allele1_count_preds, shuf_allele2_count_preds,
-                                                                shuf_allele1_profile_preds, shuf_allele2_profile_preds)
+        peak_chrom_sizes = pd.read_csv(args.peak_chrom_sizes, header=None, sep='\t', names=['chrom', 'size'])
+        peak_chrom_sizes_dict = peak_chrom_sizes.set_index('chrom')['size'].to_dict()
+
+        peaks = pd.read_csv(args.peaks, header=None, sep='\t', names=SCHEMA['narrowpeak'])
+        peaks.sort_values(by=['chr', 'start', 'end', 'summit', 'rank'], ascending=[True, True, True, True, False], inplace=True)
+        peaks.drop_duplicates(subset=['chr', 'start', 'end', 'summit'], inplace=True)
+
+        print(peaks.shape)
+        peaks = peaks.loc[peaks.apply(lambda x: get_valid_peaks(x.chr, x.start, x.summit, input_len, peak_chrom_sizes_dict), axis=1)]
+
+        if len(peaks) > args.max_peaks:
+            peaks = peaks.sample(args.num_peaks)
+
+        peaks.reset_index(drop=True, inplace=True)
+        print(peaks.shape)
+
+        count_preds, profile_preds = fetch_peak_predictions(model,
+                                                            peaks,
+                                                            input_len,
+                                                            args.peak_genome,
+                                                            args.batch_size,
+                                                            debug_mode=args.debug_mode,
+                                                            lite=args.lite,
+                                                            bias=None)
+
+        log_fold_change, profile_jsd, \
+        allele1_percentile, allele2_percentile, \
+        percentile_change = get_variant_scores_with_peaks(allele1_count_preds, allele2_count_preds,
+                                                          allele1_profile_preds, allele2_profile_preds,
+                                                          count_preds)
+
+        shuf_log_fold_change, shuf_profile_jsd, \
+        shuf_allele1_percentile, shuf_allele2_percentile, \
+        shuf_percentile_change = get_variant_scores_with_peaks(shuf_allele1_count_preds, shuf_allele2_count_preds,
+                                                               shuf_allele1_profile_preds, shuf_allele2_profile_preds,
+                                                               count_preds)
+
+    else:
+        log_fold_change, profile_jsd = get_variant_scores(allele1_count_preds, allele2_count_preds,                                                                                                    allele1_profile_preds, allele2_profile_preds)
+
+        shuf_log_fold_change, shuf_profile_jsd = get_variant_scores(shuf_allele1_count_preds, shuf_allele2_count_preds,
+                                                                    shuf_allele1_profile_preds, shuf_allele2_profile_preds)
 
     # unpack rsids to write outputs and write score to output
     assert np.array_equal(variants_table["rsid"].tolist(), rsids)
@@ -94,7 +157,6 @@ def main():
     variants_table["profile_jsd"] = profile_jsd
     variants_table["allele1_pred_counts"] = allele1_count_preds
     variants_table["allele2_pred_counts"] = allele2_count_preds
-
     variants_table["log_fold_change_pval"] = variants_table["log_fold_change"].apply(lambda x:
                                                                                      2 * min(scipy.stats.percentileofscore(shuf_log_fold_change, x) / 100,
                                                                                              1 - (scipy.stats.percentileofscore(shuf_log_fold_change, x) / 100)))
@@ -102,6 +164,21 @@ def main():
                                                                              1 - (scipy.stats.percentileofscore(shuf_profile_jsd, x) / 100))
     variants_table["poisson_pval"] = variants_table.apply(lambda x:
                                                           poisson_pval(x.allele1_pred_counts, x.allele2_pred_counts), axis=1)
+    variants_table["poisson_pval_best"] = variants_table.apply(lambda x:
+                                                               poisson_pval_best(x.allele1_pred_counts, x.allele2_pred_counts), axis=1)
+    variants_table["poisson_pval_worst"] = variants_table.apply(lambda x:
+                                                               poisson_pval_worst(x.allele1_pred_counts, x.allele2_pred_counts), axis=1)
+    variants_table["poisson_pval_bh"] = statsmodels.stats.multitest.multipletests(variants_table["poisson_pval"].tolist(),
+                                                                                  method='fdr_bh')[1]
+
+    if args.peaks:
+        variants_table["allele1_percentile"] = allele1_percentile
+        variants_table["allele2_percentile"] = allele2_percentile
+        variants_table["max_percentile"] = variants_table[["allele1_percentile", "allele2_percentile"]].max(axis=1)
+        variants_table["percentile_change"] = percentile_change
+        variants_table["percentile_change_pval"] = variants_table["percentile_change"].apply(lambda x:
+                                                                                         2 * min(scipy.stats.percentileofscore(shuf_percentile_change, x) / 100,
+                                                                                                 1 - (scipy.stats.percentileofscore(shuf_percentile_change, x) / 100)))
 
     if args.bias != None:
         bias = load_model_wrapper(args.bias)
@@ -114,33 +191,56 @@ def main():
                                                                                             debug_mode=args.debug_mode,
                                                                                             lite=args.lite,
                                                                                             bias=bias,
-                                                                                            shuf=False)
+                                                                                            shuf=False,
+                                                                                            num_shuf=args.num_shuf)
 
         shuf_w_bias_rsids, shuf_w_bias_allele1_count_preds, shuf_w_bias_shuf_allele2_count_preds, \
         shuf_w_bias_allele1_profile_preds, shuf_w_bias_allele2_profile_preds = fetch_variant_predictions(model,
-                                                                                                        variants_table,
+                                                                                                        shuf_variants_table,
                                                                                                         input_len,
                                                                                                         args.genome,
                                                                                                         args.batch_size,
                                                                                                         debug_mode=args.debug_mode,
                                                                                                         lite=args.lite,
                                                                                                         bias=bias,
-                                                                                                        shuf=True)
+                                                                                                        shuf=True,
+                                                                                                        num_shuf=args.num_shuf)
 
-        w_bias_log_fold_change, w_bias_profile_jsd = get_variant_scores(w_bias_allele1_count_preds, w_bias_allele2_count_preds,
-                                                                        w_bias_allele1_profile_preds, w_bias_allele2_profile_preds)
+        if args.peaks:
+            w_bias_count_preds, w_bias_profile_preds = fetch_peak_predictions(model,
+                                                                              peaks,
+                                                                              input_len,
+                                                                              args.peak_genome,
+                                                                              args.batch_size,
+                                                                              debug_mode=args.debug_mode,
+                                                                              lite=args.lite,
+                                                                              bias=bias)
 
-        shuf_w_bias_log_fold_change, shuf_w_bias_profile_jsd = get_variant_scores(shuf_w_bias_allele1_count_preds,
-                                                                                  shuf_w_bias_shuf_allele2_count_preds,
-                                                                                  shuf_w_bias_allele1_profile_preds,
-                                                                                  shuf_w_bias_allele2_profile_preds)
+            w_bias_log_fold_change, w_bias_profile_jsd, \
+            w_bias_allele1_percentile, w_bias_allele2_percentile, \
+            w_bias_percentile_change = get_variant_scores(w_bias_allele1_count_preds, w_bias_allele2_count_preds,
+                                                          w_bias_allele1_profile_preds, w_bias_allele2_profile_preds,
+                                                          w_bias_count_preds)
+
+            shuf_w_bias_log_fold_change, shuf_w_bias_profile_jsd, \
+            shuf_w_bias_allele1_percentile, shuf_w_bias_allele2_percentile, \
+            shuf_w_bias_percentile_change = get_variant_scores(shuf_w_bias_allele1_count_preds, shuf_w_bias_shuf_allele2_count_preds,
+                                                               shuf_w_bias_allele1_profile_preds, shuf_w_bias_allele2_profile_preds,
+                                                               w_bias_count_preds)
+        else:
+            w_bias_log_fold_change, w_bias_profile_jsd = get_variant_scores(w_bias_allele1_count_preds, w_bias_allele2_count_preds,
+                                                          w_bias_allele1_profile_preds, w_bias_allele2_profile_preds)
+
+            shuf_w_bias_log_fold_change, shuf_w_bias_profile_jsd = get_variant_scores(shuf_w_bias_allele1_count_preds,
+                                                                                      shuf_w_bias_shuf_allele2_count_preds,
+                                                                                      shuf_w_bias_allele1_profile_preds,
+                                                                                      shuf_w_bias_allele2_profile_preds)
 
         assert np.array_equal(variants_table["rsid"].tolist(), w_bias_rsids)
         variants_table["log_fold_change_w_bias"] = w_bias_log_fold_change
         variants_table["profile_jsd_w_bias"] = w_bias_profile_jsd
         variants_table["allele1_pred_counts_w_bias"] = w_bias_allele1_count_preds
         variants_table["allele2_pred_counts_w_bias"] = w_bias_allele2_count_preds
-
         variants_table["log_fold_change_w_bias_pval"] = variants_table["log_fold_change_w_bias"].apply(lambda x:
                                                                                          2 * min(scipy.stats.percentileofscore(shuf_w_bias_log_fold_change, x) / 100,
                                                                                                  1 - (scipy.stats.percentileofscore(shuf_w_bias_log_fold_change, x) / 100)))
@@ -148,6 +248,14 @@ def main():
                                                                                  1 - (scipy.stats.percentileofscore(shuf_w_bias_profile_jsd, x) / 100))
         variants_table["poisson_w_bias_pval"] = variants_table.apply(lambda x:
                                                               poisson_pval(x.allele1_pred_counts_w_bias, x.allele2_pred_counts_w_bias), axis=1)
+
+        if args.peaks:
+            variants_table["allele1_percentile_w_bias"] = w_bias_allele1_percentile
+            variants_table["allele2_percentile_w_bias"] = w_bias_allele2_percentile
+            variants_table["max_percentile_w_bias"] = variants_table[["allele1_percentile_w_bias", "allele2_percentile_w_bias"]].max(axis=1)
+            variants_table["percentile_change_w_bias"] = w_bias_percentile_change
+            variants_table["percentile_change_w_bias_pval"] = variants_table["percentile_change_w_bias"].apply(lambda x:
+                                                                                        1 - (scipy.stats.percentileofscore(shuf_w_bias_percentile_change, x) / 100))
 
     variants_table.to_csv('.'.join([args.out_prefix, "variant_scores.tsv"]), sep="\t", index=False)
 
@@ -160,6 +268,8 @@ def main():
         wo_bias.create_dataset('allele2_pred_profile', data=allele2_profile_preds)
         wo_bias.create_dataset('shuf_log_fold_change', data=shuf_log_fold_change)
         wo_bias.create_dataset('shuf_profile_jsd', data=shuf_profile_jsd)
+        if args.peaks:
+            wo_bias.create_dataset('shuf_percentile_change', data=shuf_percentile_change)
 
         if args.bias != None:
             w_bias = f.create_group('w_bias')
@@ -169,6 +279,8 @@ def main():
             w_bias.create_dataset('allele2_pred_profile_w_bias', data=w_bias_allele2_profile_preds)
             wo_bias.create_dataset('shuf_w_bias_log_fold_change', data=shuf_w_bias_log_fold_change)
             wo_bias.create_dataset('shuf_w_bias_profile_jsd', data=shuf_w_bias_profile_jsd)
+            if args.peaks:
+                wo_bias.create_dataset('shuf_w_bias_percentile_change', data=shuf_w_bias_percentile_change)
 
     print("DONE")
 
@@ -177,7 +289,35 @@ def poisson_pval(allele1_counts, allele2_counts):
         pval = 1 - scipy.stats.poisson.cdf(allele2_counts, allele1_counts)
     else:
         pval = scipy.stats.poisson.cdf(allele2_counts, allele1_counts)
+    pval = pval * 2
     return pval
+
+def poisson_pval_best(allele1_counts, allele2_counts):
+    if allele2_counts > allele1_counts:
+        pval_1 = 1 - scipy.stats.poisson.cdf(allele2_counts, allele1_counts)
+        pval_2 = scipy.stats.poisson.cdf(allele1_counts, allele2_counts)
+    else:
+        pval_1 = scipy.stats.poisson.cdf(allele2_counts, allele1_counts)
+        pval_2 = 1 - scipy.stats.poisson.cdf(allele1_counts, allele2_counts)
+    pval = min([pval_1, pval_2]) * 2
+    return pval
+
+def poisson_pval_worst(allele1_counts, allele2_counts):
+    if allele2_counts > allele1_counts:
+        pval_1 = 1 - scipy.stats.poisson.cdf(allele2_counts, allele1_counts)
+        pval_2 = scipy.stats.poisson.cdf(allele1_counts, allele2_counts)
+    else:
+        pval_1 = scipy.stats.poisson.cdf(allele2_counts, allele1_counts)
+        pval_2 = 1 - scipy.stats.poisson.cdf(allele1_counts, allele2_counts)
+    pval = max([pval_1, pval_2]) * 2
+    return pval
+
+def get_valid_peaks(chrom, pos, summit, input_len, chrom_sizes_dict):
+    flank = input_len // 2
+    lower_check = ((pos + summit) - flank > 0)
+    upper_check = ((pos + summit) + flank <= chrom_sizes_dict[chrom])
+    in_bounds = lower_check and upper_check
+    return in_bounds
 
 def get_valid_variants(chrom, pos, input_len, chrom_sizes_dict):
     flank = input_len // 2
@@ -198,7 +338,46 @@ def load_model_wrapper(model_file):
     print("model loaded succesfully")
     return model
 
-def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, batch_size, debug_mode=False, lite=False, bias=None, shuf=False):
+def fetch_peak_predictions(model, peaks, input_len, genome_fasta, batch_size, debug_mode=False, lite=False, bias=None):
+    count_preds = []
+    profile_preds = []
+
+    # peak sequence generator
+    peak_gen = PeakGenerator(peaks=peaks,
+                             input_len=input_len,
+                             genome_fasta=genome_fasta,
+                             batch_size=batch_size,
+                             debug_mode=debug_mode)
+
+    for i in tqdm(range(len(peak_gen))):
+
+        seqs = peak_gen[i]
+
+        if lite:
+            if bias != None:
+                bias_batch_preds = bias.predict(seqs, verbose=False)
+
+                batch_preds = model.predict([seqs,
+                                             bias_batch_preds[0],
+                                             bias_batch_preds[1]],
+                                            verbose=False)
+            else:
+                batch_preds = model.predict([seqs,
+                                             np.zeros((len(seqs), model.output_shape[0][1])),
+                                             np.zeros((len(seqs), ))],
+                                            verbose=False)
+        else:
+            if bias != None:
+                batch_preds = bias.predict(seqs, verbose=False)
+            else:
+                batch_preds = model.predict(seqs, verbose=False)
+
+        count_preds.extend(np.exp(np.squeeze(batch_preds[1])) - 1)
+        profile_preds.extend(np.squeeze(softmax(batch_preds[0])))
+
+    return np.array(count_preds), np.array(profile_preds)
+
+def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, batch_size, debug_mode=False, lite=False, bias=None, shuf=False, num_shuf=10):
     rsids = []
     allele1_count_preds = []
     allele2_count_preds = []
@@ -211,7 +390,8 @@ def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, ba
                            genome_fasta=genome_fasta,
                            batch_size=batch_size,
                            debug_mode=debug_mode,
-                           shuf=shuf)
+                           shuf=shuf,
+                           num_shuf=num_shuf)
 
     for i in tqdm(range(len(snp_gen))):
 
@@ -257,6 +437,16 @@ def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, ba
 
     return np.array(rsids), np.array(allele1_count_preds), np.array(allele2_count_preds), \
            np.array(allele1_profile_preds), np.array(allele2_profile_preds)
+
+def get_variant_scores_with_peaks(allele1_count_preds, allele2_count_preds,
+                       allele1_profile_preds, allele2_profile_preds, count_preds):
+    log_fold_change = np.log2(allele2_count_preds / allele1_count_preds)
+    profile_jsd_diff = np.array([jensenshannon(x,y) for x,y in zip(allele2_profile_preds, allele1_profile_preds)])
+    allele1_percentile = np.array([np.mean(count_preds < x) for x in allele1_count_preds])
+    allele2_percentile = np.array([np.mean(count_preds < x) for x in allele2_count_preds])
+    percentile_change = allele2_percentile - allele1_percentile
+
+    return log_fold_change, profile_jsd_diff, allele1_percentile, allele2_percentile, percentile_change
 
 def get_variant_scores(allele1_count_preds, allele2_count_preds,
                        allele1_profile_preds, allele2_profile_preds):
