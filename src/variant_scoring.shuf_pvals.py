@@ -44,13 +44,6 @@ def main():
     chrom_sizes = pd.read_csv(args.chrom_sizes, header=None, sep='\t', names=['chrom', 'size'])
     chrom_sizes_dict = chrom_sizes.set_index('chrom')['size'].to_dict()
 
-    peak_chrom_sizes = pd.read_csv(args.peak_chrom_sizes, header=None, sep='\t', names=['chrom', 'size'])
-    peak_chrom_sizes_dict = peak_chrom_sizes.set_index('chrom')['size'].to_dict()
-
-    peaks = pd.read_csv(args.peaks, header=None, sep='\t', names=SCHEMA['narrowpeak'])
-    peaks.sort_values(by=['chr', 'start', 'end', 'rank'], ascending=[True, True, True, False], inplace=True)
-    peaks.drop_duplicates(subset=['chr', 'start', 'end'], inplace=True)
-
     if args.chrom:
         variants_table = variants_table.loc[variants_table['chr'] == args.chrom]
 
