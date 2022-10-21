@@ -20,6 +20,7 @@ import statsmodels.stats.multitest
 SCHEMA = {'bed': ["chr", "pos", "rsid", "allele1", "allele2"],
           'plink': ["chr", "rsid", "ignore1", "pos", "allele1", "allele2"],
           'narrowpeak': ['chr', 'start', 'end', 3, 4, 5, 6, 7, 'rank', 'summit'],
+          'neuro-variants': ['chr', 'ignore1', 'pos', 'allele1', 'allele2', 'rsid', 'ignore2'],
           'chrombpnet': ["chr", "pos", "allele1", "allele2", "rsid"]}
 
 def main():
@@ -47,17 +48,6 @@ def main():
     if args.chrom:
         variants_table = variants_table.loc[variants_table['chr'] == args.chrom]
 
-    if args.debug_mode:
-        variants_table = variants_table.sample(1000)
-        print(variants_table.head())
-        peaks = peaks.sample(1000)
-
-    if len(variants_table) > args.max_shuf:
-        shuf_variants_table = variants_table.sample(args.max_shuf)
-        args.num_shuf = 1
-    else:
-        shuf_variants_table = variants_table.copy()
-
     # infer input length
     if args.lite:
         input_len = model.input_shape[0][1]
@@ -66,9 +56,23 @@ def main():
     print("input length inferred from the model: ", input_len)
 
     print(variants_table.shape)
-    variants_table = variants_table.loc[variants_table.apply(lambda x: get_valid_variants(x.chr, x.pos, input_len, chrom_sizes_dict), axis=1)]
+    variants_table = variants_table.loc[variants_table.apply(lambda x: get_valid_variants(x.chr, x.pos, x.allele1, x.allele2, input_len, chrom_sizes_dict), axis=1)]
     variants_table.reset_index(drop=True, inplace=True)
     print(variants_table.shape)
+
+    if args.debug_mode:
+        variants_table = variants_table.sample(1000)
+        print(variants_table.head())
+        peaks = peaks.sample(1000)
+
+    if args.max_shuf:
+        if len(variants_table) > args.max_shuf:
+            shuf_variants_table = variants_table.sample(args.max_shuf)
+            args.num_shuf = 1
+        else:
+            shuf_variants_table = variants_table.copy()
+    else:
+        shuf_variants_table = variants_table.copy()
 
     # fetch model prediction for variants
     rsids, allele1_count_preds, allele2_count_preds, \
@@ -111,8 +115,9 @@ def main():
         print(peaks.shape)
         peaks = peaks.loc[peaks.apply(lambda x: get_valid_peaks(x.chr, x.start, x.summit, input_len, peak_chrom_sizes_dict), axis=1)]
 
-        if len(peaks) > args.max_peaks:
-            peaks = peaks.sample(args.num_peaks)
+        if args.max_peaks:
+            if len(peaks) > args.max_peaks:
+                peaks = peaks.sample(args.max_peaks)
 
         peaks.reset_index(drop=True, inplace=True)
         print(peaks.shape)
@@ -312,12 +317,16 @@ def get_valid_peaks(chrom, pos, summit, input_len, chrom_sizes_dict):
     in_bounds = lower_check and upper_check
     return in_bounds
 
-def get_valid_variants(chrom, pos, input_len, chrom_sizes_dict):
+def get_valid_variants(chrom, pos, allele1, allele2, input_len, chrom_sizes_dict):
     flank = input_len // 2
     lower_check = (pos - flank > 0)
     upper_check = (pos + flank <= chrom_sizes_dict[chrom])
     in_bounds = lower_check and upper_check
-    return in_bounds
+    no_allele1_indel = (len(allele1) == 1)
+    no_allele2_indel = (len(allele2) == 2)
+    no_indels = no_allele1_indel and no_allele2_indel
+    valid_variants = in_bounds and no_indels
+    return valid_variants
 
 def softmax(x, temp=1):
     norm_x = x - np.mean(x,axis=1, keepdims=True)
