@@ -1,4 +1,3 @@
-from turtle import pos
 from snp_generator import SNPGenerator
 from peak_generator import PeakGenerator
 from utils import argmanager, losses
@@ -17,10 +16,10 @@ from tqdm import tqdm
 import statsmodels.stats.multitest
 
 
-SCHEMA = {'bed': ["chr", "pos", "rsid", "allele1", "allele2"],
+SCHEMA = {'original': ["chr", "pos", "rsid", "allele1", "allele2"],
           'plink': ["chr", "rsid", "ignore1", "pos", "allele1", "allele2"],
           'narrowpeak': ['chr', 'start', 'end', 3, 4, 5, 6, 7, 'rank', 'summit'],
-          'neuro-variants': ['chr', 'ignore1', 'pos', 'allele1', 'allele2', 'rsid', 'ignore2'],
+          'bed': ['chr', 'start', 'pos', 'allele1', 'allele2', 'rsid', 'snp_id'],
           'chrombpnet': ["chr", "pos", "allele1", "allele2", "rsid"]}
 
 def main():
@@ -323,7 +322,7 @@ def get_valid_variants(chrom, pos, allele1, allele2, input_len, chrom_sizes_dict
     upper_check = (pos + flank <= chrom_sizes_dict[chrom])
     in_bounds = lower_check and upper_check
     no_allele1_indel = (len(allele1) == 1)
-    no_allele2_indel = (len(allele2) == 2)
+    no_allele2_indel = (len(allele2) == 1)
     no_indels = no_allele1_indel and no_allele2_indel
     valid_variants = in_bounds and no_indels
     return valid_variants

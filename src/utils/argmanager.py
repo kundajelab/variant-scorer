@@ -12,7 +12,7 @@ def update_scoring_args(parser):
     parser.add_argument("-li", "--lite", action='store_true', help="Models were trained with chrombpnet-lite")
     parser.add_argument("-dm", "--debug_mode", action='store_true', help="Display allele input sequences")
     parser.add_argument("-bs", "--batch_size", type=int, default=512, help="Batch size to use for the model")
-    parser.add_argument("-sc", "--schema", type=str, choices=['bed', 'plink', 'chrombpnet'], default='chrombpnet', help="Format for the input variants list")
+    parser.add_argument("-sc", "--schema", type=str, choices=['bed', 'plink', 'neuro-variants', 'chrombpnet', 'original'], default='chrombpnet', help="Format for the input variants list")
     parser.add_argument("-p", "--peaks", type=str, help="Bed file containing peak regions")
     parser.add_argument("-n", "--num_shuf", type=int, default=10, help="Number of shuffled scores for each SNP")
     parser.add_argument("-ms", "--max_shuf", type=int, help="Maximum number of total shuffled scores to generate")
