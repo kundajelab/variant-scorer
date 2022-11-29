@@ -56,13 +56,13 @@ def main():
 
     print(variants_table.shape)
     variants_table = variants_table.loc[variants_table.apply(lambda x: get_valid_variants(x.chr, x.pos, x.allele1, x.allele2, input_len, chrom_sizes_dict), axis=1)]
-    variants_table.reset_index(drop=True, inplace=True)
     print(variants_table.shape)
 
     if args.debug_mode:
-        variants_table = variants_table.sample(1000)
+        variants_table = variants_table.sample(100000)
         print(variants_table.head())
-        peaks = peaks.sample(1000)
+
+    variants_table.reset_index(drop=True, inplace=True)
 
     if args.max_shuf:
         if len(variants_table) > args.max_shuf:
@@ -72,6 +72,8 @@ def main():
             shuf_variants_table = variants_table.copy()
     else:
         shuf_variants_table = variants_table.copy()
+
+    print(shuf_variants_table.shape)
 
     # fetch model prediction for variants
     rsids, allele1_count_preds, allele2_count_preds, \
@@ -114,6 +116,9 @@ def main():
         print(peaks.shape)
         peaks = peaks.loc[peaks.apply(lambda x: get_valid_peaks(x.chr, x.start, x.summit, input_len, peak_chrom_sizes_dict), axis=1)]
 
+        if args.debug_mode:
+            peaks = peaks.sample(100000)
+
         if args.max_peaks:
             if len(peaks) > args.max_peaks:
                 peaks = peaks.sample(args.max_peaks)
@@ -147,6 +152,8 @@ def main():
 
         shuf_log_fold_change, shuf_profile_jsd = get_variant_scores(shuf_allele1_count_preds, shuf_allele2_count_preds,
                                                                     shuf_allele1_profile_preds, shuf_allele2_profile_preds)
+
+    print(len(shuf_allele1_count_preds))
 
     # unpack rsids to write outputs and write score to output
     assert np.array_equal(variants_table["rsid"].tolist(), rsids)
