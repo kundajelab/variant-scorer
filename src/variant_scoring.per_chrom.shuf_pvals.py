@@ -125,8 +125,8 @@ def main():
                                                                count_preds)
 
         shuf_max_percentile = np.maximum(shuf_allele1_percentile, shuf_allele2_percentile)
-        shuf_logfc_jsd = np.abs(shuf_log_fold_change) * shuf_profile_jsd
-        shuf_logfc_jsd_max_percentile = np.abs(shuf_log_fold_change) * shuf_profile_jsd * shuf_max_percentile
+        shuf_logfc_jsd = np.squeeze(np.abs(shuf_log_fold_change)) * shuf_profile_jsd
+        shuf_logfc_jsd_max_percentile = shuf_logfc_jsd * shuf_max_percentile
 
     else:
         shuf_log_fold_change, shuf_profile_jsd = get_variant_scores(shuf_allele1_count_preds, shuf_allele2_count_preds,
@@ -192,7 +192,7 @@ def main():
             chrom_variants_table["allele1_percentile"] = allele1_percentile
             chrom_variants_table["allele2_percentile"] = allele2_percentile
             chrom_variants_table["max_percentile"] = chrom_variants_table[["allele1_percentile", "allele2_percentile"]].max(axis=1)
-            chrom_variants_table["logfc_jsd_max_percentile"] = abs(chrom_variants_table["log_fold_change"]) * chrom_variants_table["profile_jsd"] * chrom_variants_table["max_percentile"]
+            chrom_variants_table["logfc_jsd_max_percentile"] = chrom_variants_table["logfc_jsd"] * chrom_variants_table["max_percentile"]
             chrom_variants_table["logfc_jsd_max_percentile_pval"] = chrom_variants_table["logfc_jsd_max_percentile"].apply(lambda x:
                                                             1 - (scipy.stats.percentileofscore(shuf_logfc_jsd_max_percentile, x) / 100))
             chrom_variants_table["percentile_change"] = percentile_change
