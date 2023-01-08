@@ -407,6 +407,8 @@ def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, ba
                            shuf=shuf,
                            num_shuf=num_shuf)
 
+    print()
+
     for i in tqdm(range(len(snp_gen))):
 
         batch_rsids, allele1_seqs, allele2_seqs = snp_gen[i]
@@ -441,8 +443,23 @@ def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, ba
                 allele1_batch_preds = model.predict(allele1_seqs, verbose=False)
                 allele2_batch_preds = model.predict(allele2_seqs, verbose=False)
 
-        allele1_count_preds.extend(np.exp(np.squeeze(allele1_batch_preds[1])))
-        allele2_count_preds.extend(np.exp(np.squeeze(allele2_batch_preds[1])))
+        #for index,item in enumerate(allele1_batch_preds):
+        #    print(item)
+
+        #print(type(allele1_batch_preds))
+
+        allele1_batch_preds[1] = np.array([allele1_batch_preds[1][i] for i in range(len(allele1_batch_preds[1]))])
+        allele2_batch_preds[1] = np.array([allele2_batch_preds[1][i] for i in range(len(allele2_batch_preds[1]))])
+
+        #print(allele1_seqs.shape)
+        #print(allele1_batch_preds[1].shape)
+        #print()
+        #print(allele2_seqs.shape)
+        #print(allele2_batch_preds[1].shape)
+        #print()
+
+        allele1_count_preds.extend(np.exp(allele1_batch_preds[1]))
+        allele2_count_preds.extend(np.exp(allele2_batch_preds[1]))
 
         allele1_profile_preds.extend(np.squeeze(softmax(allele1_batch_preds[0])))
         allele2_profile_preds.extend(np.squeeze(softmax(allele2_batch_preds[0])))

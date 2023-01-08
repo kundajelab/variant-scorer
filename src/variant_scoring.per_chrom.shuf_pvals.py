@@ -58,10 +58,6 @@ def main():
     variants_table = variants_table.loc[variants_table.apply(lambda x: get_valid_variants(x.chr, x.pos, x.allele1, x.allele2, input_len, chrom_sizes_dict), axis=1)]
     print(variants_table.shape)
 
-    if args.debug_mode:
-        variants_table = variants_table.sample(1000)
-        print(variants_table.head())
-
     variants_table.reset_index(drop=True, inplace=True)
 
     if args.max_shuf:
@@ -74,21 +70,6 @@ def main():
         shuf_variants_table = variants_table.copy()
 
     print(shuf_variants_table.shape)
-
-    # fetch model prediction for variants
-    rsids, allele1_count_preds, allele2_count_preds, \
-    allele1_profile_preds, allele2_profile_preds = fetch_variant_predictions(model,
-                                                                            variants_table,
-                                                                            input_len,
-                                                                            args.genome,
-                                                                            args.batch_size,
-                                                                            debug_mode=args.debug_mode,
-                                                                            lite=args.lite,
-                                                                            bias=None,
-                                                                            shuf=False,
-                                                                            num_shuf=args.num_shuf)
-
-    print("Killed after function returns")
 
     shuf_rsids, shuf_allele1_count_preds, shuf_allele2_count_preds, \
     shuf_allele1_profile_preds, shuf_allele2_profile_preds = fetch_variant_predictions(model,
@@ -137,12 +118,6 @@ def main():
                                                             lite=args.lite,
                                                             bias=None)
 
-        log_fold_change, profile_jsd, \
-        allele1_percentile, allele2_percentile, \
-        percentile_change = get_variant_scores_with_peaks(allele1_count_preds, allele2_count_preds,
-                                                          allele1_profile_preds, allele2_profile_preds,
-                                                          count_preds)
-
         shuf_log_fold_change, shuf_profile_jsd, \
         shuf_allele1_percentile, shuf_allele2_percentile, \
         shuf_percentile_change = get_variant_scores_with_peaks(shuf_allele1_count_preds, shuf_allele2_count_preds,
@@ -154,58 +129,96 @@ def main():
         shuf_logfc_jsd_max_percentile = np.abs(shuf_log_fold_change) * shuf_profile_jsd * shuf_max_percentile
 
     else:
-        log_fold_change, profile_jsd = get_variant_scores(allele1_count_preds, allele2_count_preds,                                                                                                    allele1_profile_preds, allele2_profile_preds)
-
         shuf_log_fold_change, shuf_profile_jsd = get_variant_scores(shuf_allele1_count_preds, shuf_allele2_count_preds,
                                                                     shuf_allele1_profile_preds, shuf_allele2_profile_preds)
 
-    print(len(shuf_allele1_count_preds))
+    todo_chroms = [x for x in variants_table.chr.unique() if not os.path.exists('.'.join([args.out_prefix, x, "variant_predictions.h5"]))]
 
-    # unpack rsids to write outputs and write score to output
-    assert np.array_equal(variants_table["rsid"].tolist(), rsids)
-    variants_table["log_fold_change"] = log_fold_change
-    variants_table["profile_jsd"] = profile_jsd
-    variants_table["logfc_jsd"] = abs(variants_table["log_fold_change"]) * variants_table["profile_jsd"]
-    variants_table["allele1_pred_counts"] = allele1_count_preds
-    variants_table["allele2_pred_counts"] = allele2_count_preds
-    variants_table["log_fold_change_pval"] = variants_table["log_fold_change"].apply(lambda x:
+    for chrom in todo_chroms:
+        print()
+        print(chrom)
+        print()
+
+        chrom_variants_table = variants_table.loc[variants_table['chr'] == chrom].sort_values(by='pos').copy()
+        chrom_variants_table.reset_index(drop=True, inplace=True)
+        print(chrom_variants_table.shape)
+        print()
+
+        if args.debug_mode:
+            chrom_variants_table = chrom_variants_table.sample(1000)
+            print(chrom_variants_table.head())
+
+        chrom_variants_table.reset_index(drop=True, inplace=True)
+
+        # fetch model prediction for variants
+        rsids, allele1_count_preds, allele2_count_preds, \
+        allele1_profile_preds, allele2_profile_preds = fetch_variant_predictions(model,
+                                                                            chrom_variants_table,
+                                                                            input_len,
+                                                                            args.genome,
+                                                                            args.batch_size,
+                                                                            debug_mode=args.debug_mode,
+                                                                            lite=args.lite,
+                                                                            bias=None,
+                                                                            shuf=False,
+                                                                            num_shuf=args.num_shuf)
+
+        if args.peaks:
+            log_fold_change, profile_jsd, \
+            allele1_percentile, allele2_percentile, \
+            percentile_change = get_variant_scores_with_peaks(allele1_count_preds, allele2_count_preds,
+                                                          allele1_profile_preds, allele2_profile_preds,
+                                                          count_preds)
+
+        else:
+            log_fold_change, profile_jsd = get_variant_scores(allele1_count_preds, allele2_count_preds,                                                                                                    allele1_profile_preds, allele2_profile_preds)
+
+        # unpack rsids to write outputs and write score to output
+        assert np.array_equal(chrom_variants_table["rsid"].tolist(), rsids)
+        chrom_variants_table["log_fold_change"] = log_fold_change
+        chrom_variants_table["profile_jsd"] = profile_jsd
+        chrom_variants_table["logfc_jsd"] = abs(chrom_variants_table["log_fold_change"]) * chrom_variants_table["profile_jsd"]
+        chrom_variants_table["allele1_pred_counts"] = allele1_count_preds
+        chrom_variants_table["allele2_pred_counts"] = allele2_count_preds
+        chrom_variants_table["log_fold_change_pval"] = chrom_variants_table["log_fold_change"].apply(lambda x:
                                                                                      2 * min(scipy.stats.percentileofscore(shuf_log_fold_change, x) / 100,
                                                                                              1 - (scipy.stats.percentileofscore(shuf_log_fold_change, x) / 100)))
-    variants_table["profile_jsd_pval"] = variants_table["profile_jsd"].apply(lambda x:
+        chrom_variants_table["profile_jsd_pval"] = chrom_variants_table["profile_jsd"].apply(lambda x:
                                                                              1 - (scipy.stats.percentileofscore(shuf_profile_jsd, x) / 100))
-    variants_table["logfc_jsd_pval"] = variants_table["logfc_jsd"].apply(lambda x:
+        chrom_variants_table["logfc_jsd_pval"] = chrom_variants_table["logfc_jsd"].apply(lambda x:
                                                                              1 - (scipy.stats.percentileofscore(shuf_logfc_jsd, x) / 100))
 
-    if args.peaks:
-        variants_table["allele1_percentile"] = allele1_percentile
-        variants_table["allele2_percentile"] = allele2_percentile
-        variants_table["max_percentile"] = variants_table[["allele1_percentile", "allele2_percentile"]].max(axis=1)
-        variants_table["logfc_jsd_max_percentile"] = abs(variants_table["log_fold_change"]) * variants_table["profile_jsd"] * variants_table["max_percentile"]
-        variants_table["logfc_jsd_max_percentile_pval"] = variants_table["logfc_jsd_max_percentile"].apply(lambda x:
+        if args.peaks:
+            chrom_variants_table["allele1_percentile"] = allele1_percentile
+            chrom_variants_table["allele2_percentile"] = allele2_percentile
+            chrom_variants_table["max_percentile"] = chrom_variants_table[["allele1_percentile", "allele2_percentile"]].max(axis=1)
+            chrom_variants_table["logfc_jsd_max_percentile"] = abs(chrom_variants_table["log_fold_change"]) * chrom_variants_table["profile_jsd"] * chrom_variants_table["max_percentile"]
+            chrom_variants_table["logfc_jsd_max_percentile_pval"] = chrom_variants_table["logfc_jsd_max_percentile"].apply(lambda x:
                                                             1 - (scipy.stats.percentileofscore(shuf_logfc_jsd_max_percentile, x) / 100))
-        variants_table["percentile_change"] = percentile_change
-        variants_table["percentile_change_pval"] = variants_table["percentile_change"].apply(lambda x:
+            chrom_variants_table["percentile_change"] = percentile_change
+            chrom_variants_table["percentile_change_pval"] = chrom_variants_table["percentile_change"].apply(lambda x:
                                                                                          2 * min(scipy.stats.percentileofscore(shuf_percentile_change, x) / 100,
                                                                                                  1 - (scipy.stats.percentileofscore(shuf_percentile_change, x) / 100)))
 
-    variants_table.to_csv('.'.join([args.out_prefix, "variant_scores.tsv"]), sep="\t", index=False)
+        chrom_variants_table.to_csv('.'.join([args.out_prefix, chrom, "variant_scores.tsv"]), sep="\t", index=False)
 
-    # store predictions at variants
-    with h5py.File('.'.join([args.out_prefix, "variant_predictions.h5"]), 'w') as f:
-        wo_bias = f.create_group('wo_bias')
-        wo_bias.create_dataset('allele1_pred_counts', data=allele1_count_preds)
-        wo_bias.create_dataset('allele2_pred_counts', data=allele2_count_preds)
-        wo_bias.create_dataset('allele1_pred_profile', data=allele1_profile_preds)
-        wo_bias.create_dataset('allele2_pred_profile', data=allele2_profile_preds)
-        wo_bias.create_dataset('shuf_log_fold_change', data=shuf_log_fold_change)
-        wo_bias.create_dataset('shuf_profile_jsd', data=shuf_profile_jsd)
-        wo_bias.create_dataset('shuf_logfc_jsd', data=shuf_logfc_jsd)
-        if args.peaks:
-            wo_bias.create_dataset('shuf_percentile_change', data=shuf_percentile_change)
-            wo_bias.create_dataset('shuf_max_percentile', data=shuf_max_percentile)
-            wo_bias.create_dataset('shuf_logfc_jsd_max_percentile', data=shuf_logfc_jsd_max_percentile)
+        # store predictions at variants
+        with h5py.File('.'.join([args.out_prefix, chrom, "variant_predictions.h5"]), 'w') as f:
+            wo_bias = f.create_group('wo_bias')
+            wo_bias.create_dataset('allele1_pred_counts', data=allele1_count_preds)
+            wo_bias.create_dataset('allele2_pred_counts', data=allele2_count_preds)
+            wo_bias.create_dataset('allele1_pred_profile', data=allele1_profile_preds)
+            wo_bias.create_dataset('allele2_pred_profile', data=allele2_profile_preds)
+            wo_bias.create_dataset('shuf_log_fold_change', data=shuf_log_fold_change)
+            wo_bias.create_dataset('shuf_profile_jsd', data=shuf_profile_jsd)
+            wo_bias.create_dataset('shuf_logfc_jsd', data=shuf_logfc_jsd)
+            if args.peaks:
+                wo_bias.create_dataset('shuf_percentile_change', data=shuf_percentile_change)
+                wo_bias.create_dataset('shuf_max_percentile', data=shuf_max_percentile)
+                wo_bias.create_dataset('shuf_logfc_jsd_max_percentile', data=shuf_logfc_jsd_max_percentile)
 
-    print("DONE")
+        print(str(chrom) + " DONE")
+
 
 def poisson_pval(allele1_counts, allele2_counts):
     if allele2_counts > allele1_counts:
@@ -357,23 +370,22 @@ def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, ba
                 allele1_batch_preds = model.predict(allele1_seqs, verbose=False)
                 allele2_batch_preds = model.predict(allele2_seqs, verbose=False)
 
-        allele1_count_preds.extend(np.exp(np.squeeze(allele1_batch_preds[1])))
-        allele2_count_preds.extend(np.exp(np.squeeze(allele2_batch_preds[1])))
+        allele1_batch_preds[1] = np.array([allele1_batch_preds[1][i] for i in range(len(allele1_batch_preds[1]))])
+        allele2_batch_preds[1] = np.array([allele2_batch_preds[1][i] for i in range(len(allele2_batch_preds[1]))])
+
+        allele1_count_preds.extend(np.exp(allele1_batch_preds[1]))
+        allele2_count_preds.extend(np.exp(allele2_batch_preds[1]))
 
         allele1_profile_preds.extend(np.squeeze(softmax(allele1_batch_preds[0])))
         allele2_profile_preds.extend(np.squeeze(softmax(allele2_batch_preds[0])))
 
         rsids.extend(batch_rsids)
 
-    print("Killed after all variants are scored")
-
     rsids = np.array(rsids)
     allele1_count_preds = np.array(allele1_count_preds)
     allele2_count_preds = np.array(allele2_count_preds)
     allele1_profile_preds = np.array(allele1_profile_preds)
     allele2_profile_preds = np.array(allele2_profile_preds)
-
-    print("Killed after numpy conversion")
 
     return rsids, allele1_count_preds, allele2_count_preds, \
            allele1_profile_preds, allele2_profile_preds
