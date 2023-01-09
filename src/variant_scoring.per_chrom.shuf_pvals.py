@@ -100,7 +100,7 @@ def main():
         peaks = peaks.loc[peaks.apply(lambda x: get_valid_peaks(x.chr, x.start, x.summit, input_len, peak_chrom_sizes_dict), axis=1)]
 
         if args.debug_mode:
-            peaks = peaks.sample(1000)
+            peaks = peaks.sample(10000)
 
         if args.max_peaks:
             if len(peaks) > args.max_peaks:
@@ -145,7 +145,7 @@ def main():
         print()
 
         if args.debug_mode:
-            chrom_variants_table = chrom_variants_table.sample(1000)
+            chrom_variants_table = chrom_variants_table.sample(100000)
             print(chrom_variants_table.head())
 
         chrom_variants_table.reset_index(drop=True, inplace=True)
