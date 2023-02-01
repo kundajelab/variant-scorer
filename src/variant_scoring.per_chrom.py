@@ -91,7 +91,7 @@ def main():
 
     if len(shuf_variants_table) > 0:
         if args.debug_mode:
-            shuf_variants_table = shuf_variants_table.sample(100000, random_state=args.random_seed, ignore_index=True)
+            shuf_variants_table = shuf_variants_table.sample(10000, random_state=args.random_seed, ignore_index=True)
             print()
             print(shuf_variants_table.head())
             print("Debug shuffled variants table shape:", shuf_variants_table.shape)
@@ -185,7 +185,7 @@ def main():
         print()
 
         if args.debug_mode:
-            chrom_variants_table = chrom_variants_table.sample(100000, random_state=args.random_seed, ignore_index=True)
+            chrom_variants_table = chrom_variants_table.sample(10000, random_state=args.random_seed, ignore_index=True)
             print()
             print(chrom_variants_table.head())
             print("Debug " + str(chrom) + " variants table shape:", chrom_variants_table.shape)
