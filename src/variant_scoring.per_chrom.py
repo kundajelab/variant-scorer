@@ -39,7 +39,7 @@ def main():
 
     # load the variants
     variants_table = pd.read_csv(args.list, header=None, sep='\t', names=SNP_SCHEMA[args.schema])
-    variants_table.drop(columns=[x for x in variants_table.columns if x.startswith('ignore')], inplace=True)
+    variants_table.drop(columns=[str(x) for x in variants_table.columns if str(x).startswith('ignore')], inplace=True)
     variants_table['chr'] = variants_table['chr'].astype(str).str.lower()
     has_chr_prefix = any('chr' in x for x in variants_table['chr'].tolist())
     if not has_chr_prefix:
@@ -165,9 +165,9 @@ def main():
     else:
         if len(shuf_variants_table) > 0:
             shuf_logfc, shuf_jsd = get_variant_scores(shuf_allele1_pred_counts,
-                                                                        shuf_allele2_pred_counts,
-                                                                        shuf_allele1_pred_profiles,
-                                                                        shuf_allele2_pred_profiles)
+                                                      shuf_allele2_pred_counts,
+                                                      shuf_allele1_pred_profiles,
+                                                      shuf_allele2_pred_profiles)
             shuf_abs_logfc = np.squeeze(np.abs(shuf_logfc))
             shuf_abs_logfc_jsd = shuf_abs_logfc * shuf_jsd
 
@@ -233,7 +233,7 @@ def main():
             chrom_variants_table["jsd_pval"] = chrom_variants_table["jsd"].apply(lambda x:
                                                                              1 - (scipy.stats.percentileofscore(shuf_jsd, x) / 100))
             chrom_variants_table["abs_logfc_x_jsd_pval"] = chrom_variants_table["abs_logfc_x_jsd"].apply(lambda x:
-                                                                             1 - (scipy.stats.percentileofscore(shuf_logfc_jsd, x) / 100))
+                                                                             1 - (scipy.stats.percentileofscore(shuf_abs_logfc_jsd, x) / 100))
 
         if args.peaks:
             chrom_variants_table["allele1_percentile"] = allele1_percentile
@@ -249,7 +249,7 @@ def main():
                                                                                          2 * min(scipy.stats.percentileofscore(shuf_percentile_change, x) / 100,
                                                                                                  1 - (scipy.stats.percentileofscore(shuf_percentile_change, x) / 100)))
                 chrom_variants_table["abs_logfc_x_jsd_x_max_percentile_pval"] = chrom_variants_table["abs_logfc_x_jsd_x_max_percentile"].apply(lambda x:
-                                                            1 - (scipy.stats.percentileofscore(shuf_logfc_jsd_max_percentile, x) / 100))
+                                                            1 - (scipy.stats.percentileofscore(shuf_abs_logfc_jsd_max_percentile, x) / 100))
 
         print()
         print(chrom_variants_table.head())
@@ -277,7 +277,7 @@ def main():
                     if args.peaks:
                         shuffled.create_dataset('shuf_max_percentile', data=shuf_max_percentile, compression='gzip', compression_opts=9)
                         shuffled.create_dataset('shuf_percentile_change', data=shuf_percentile_change, compression='gzip', compression_opts=9)
-                        shuffled.create_dataset('shuf_abs_logfc_x_jsd_x_max_percentile', data=shuf_logfc_jsd_max_percentile, compression='gzip', compression_opts=9)
+                        shuffled.create_dataset('shuf_abs_logfc_x_jsd_x_max_percentile', data=shuf_abs_logfc_jsd_max_percentile, compression='gzip', compression_opts=9)
 
         print("DONE:", str(chrom))
         print()
@@ -405,7 +405,6 @@ def get_variant_scores_with_peaks(allele1_pred_counts, allele2_pred_counts,
     jsd = np.array([jensenshannon(x,y) for x,y in zip(allele2_pred_profiles, allele1_pred_profiles)])
     allele1_percentile = np.array([np.mean(pred_counts < x) for x in allele1_pred_counts])
     allele2_percentile = np.array([np.mean(pred_counts < x) for x in allele2_pred_counts])
-    percentile_change = allele2_percentile - allele1_percentile
 
     return logfc, jsd, allele1_percentile, allele2_percentile
 
@@ -418,4 +417,3 @@ def get_variant_scores(allele1_pred_counts, allele2_pred_counts,
 
 if __name__ == "__main__":
     main()
-
