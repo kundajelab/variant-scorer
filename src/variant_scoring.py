@@ -88,8 +88,6 @@ def main():
                                                                             shuf=False,
                                                                             num_shuf=args.num_shuf)
 
-    print("Killed after function returns")
-
     shuf_rsids, shuf_allele1_count_preds, shuf_allele2_count_preds, \
     shuf_allele1_profile_preds, shuf_allele2_profile_preds = fetch_variant_predictions(model,
                                                                             shuf_variants_table,
@@ -150,8 +148,8 @@ def main():
                                                                count_preds)
 
         shuf_max_percentile = np.maximum(shuf_allele1_percentile, shuf_allele2_percentile)
-        shuf_logfc_jsd = np.abs(shuf_log_fold_change) * shuf_profile_jsd
-        shuf_logfc_jsd_max_percentile = np.abs(shuf_log_fold_change) * shuf_profile_jsd * shuf_max_percentile
+        shuf_logfc_jsd = np.squeeze(np.abs(shuf_log_fold_change)) * shuf_profile_jsd
+        shuf_logfc_jsd_max_percentile = shuf_logfc_jsd * shuf_max_percentile
 
     else:
         log_fold_change, profile_jsd = get_variant_scores(allele1_count_preds, allele2_count_preds,                                                                                                    allele1_profile_preds, allele2_profile_preds)
@@ -180,7 +178,7 @@ def main():
         variants_table["allele1_percentile"] = allele1_percentile
         variants_table["allele2_percentile"] = allele2_percentile
         variants_table["max_percentile"] = variants_table[["allele1_percentile", "allele2_percentile"]].max(axis=1)
-        variants_table["logfc_jsd_max_percentile"] = abs(variants_table["log_fold_change"]) * variants_table["profile_jsd"] * variants_table["max_percentile"]
+        variants_table["logfc_jsd_max_percentile"] = variants_table["logfc_jsd"] * variants_table["max_percentile"]
         variants_table["logfc_jsd_max_percentile_pval"] = variants_table["logfc_jsd_max_percentile"].apply(lambda x:
                                                             1 - (scipy.stats.percentileofscore(shuf_logfc_jsd_max_percentile, x) / 100))
         variants_table["percentile_change"] = percentile_change
@@ -206,6 +204,7 @@ def main():
             wo_bias.create_dataset('shuf_logfc_jsd_max_percentile', data=shuf_logfc_jsd_max_percentile)
 
     print("DONE")
+
 
 def poisson_pval(allele1_counts, allele2_counts):
     if allele2_counts > allele1_counts:
@@ -357,23 +356,22 @@ def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, ba
                 allele1_batch_preds = model.predict(allele1_seqs, verbose=False)
                 allele2_batch_preds = model.predict(allele2_seqs, verbose=False)
 
-        allele1_count_preds.extend(np.exp(np.squeeze(allele1_batch_preds[1])))
-        allele2_count_preds.extend(np.exp(np.squeeze(allele2_batch_preds[1])))
+        allele1_batch_preds[1] = np.array([allele1_batch_preds[1][i] for i in range(len(allele1_batch_preds[1]))])
+        allele2_batch_preds[1] = np.array([allele2_batch_preds[1][i] for i in range(len(allele2_batch_preds[1]))])
+
+        allele1_count_preds.extend(np.exp(allele1_batch_preds[1]))
+        allele2_count_preds.extend(np.exp(allele2_batch_preds[1]))
 
         allele1_profile_preds.extend(np.squeeze(softmax(allele1_batch_preds[0])))
         allele2_profile_preds.extend(np.squeeze(softmax(allele2_batch_preds[0])))
 
         rsids.extend(batch_rsids)
 
-    print("Killed after all variants are scored")
-
     rsids = np.array(rsids)
     allele1_count_preds = np.array(allele1_count_preds)
     allele2_count_preds = np.array(allele2_count_preds)
     allele1_profile_preds = np.array(allele1_profile_preds)
     allele2_profile_preds = np.array(allele2_profile_preds)
-
-    print("Killed after numpy conversion")
 
     return rsids, allele1_count_preds, allele2_count_preds, \
            allele1_profile_preds, allele2_profile_preds

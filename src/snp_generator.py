@@ -29,7 +29,7 @@ class SNPGenerator(Sequence):
         else:
             self.batch_size = batch_size
 
-    def __get_allele_seq__(self, chrom, pos, allele1, allele2, seed=0):
+    def __get_allele_seq__(self, chrom, pos, allele1, allele2, seed=-1):
         chrom = str(chrom)
         pos = int(pos)
         allele1 = str(allele1)
@@ -39,6 +39,7 @@ class SNPGenerator(Sequence):
         flank = str(self.genome.get_seq(chrom, flank_start, flank_end))
 
         if self.shuf:
+            assert seed != -1
             flank = dinuc_shuffle(flank, rng=np.random.RandomState(seed))
 
         allele1_seq = flank[:self.flank_size] + allele1 + flank[self.flank_size+1:]
@@ -50,16 +51,9 @@ class SNPGenerator(Sequence):
         rsids = cur_entries['rsid'].tolist()
 
         if self.shuf:
-            rsids = np.repeat(rsids, self.num_shuf)
             allele1_seqs, allele2_seqs = zip(*[self.__get_allele_seq__(v, w, x, y, z) for v,w,x,y,z in
-                                             zip(np.repeat(cur_entries.chr, self.num_shuf), np.repeat(cur_entries.pos, self.num_shuf),
-                                                 np.repeat(cur_entries.allele1, self.num_shuf), np.repeat(cur_entries.allele2, self.num_shuf),
-                                                 np.tile([(i + 1) * 1111 for i in range(self.num_shuf)], len(cur_entries)))])
-            # rsids = np.repeat(rsids, 2)
-            # allele1_seqs, allele2_seqs = zip(*[self.__get_allele_seq__(v, w, x, y, z) for v,w,x,y,z in
-            #                                  zip(np.repeat(cur_entries.chr, 2), np.repeat(cur_entries.pos, 2),
-            #                                      np.repeat(cur_entries.allele1, 2), np.repeat(cur_entries.allele2, 2),
-            #                                      np.tile([1234, 5678], len(cur_entries)))])
+                                             zip(cur_entries.chr, cur_entries.pos,
+                                                 cur_entries.allele1, cur_entries.allele2, cur_entries.random_seed)])
         else:
             allele1_seqs, allele2_seqs = zip(*[self.__get_allele_seq__(w, x, y, z) for w,x,y,z in
                                              zip(cur_entries.chr, cur_entries.pos, cur_entries.allele1, cur_entries.allele2)])
