@@ -24,10 +24,7 @@ class SNPGenerator(Sequence):
         self.flank_size = self.input_len // 2
         self.shuf = shuf
         self.num_shuf = num_shuf
-        if self.shuf:
-            self.batch_size = 32
-        else:
-            self.batch_size = batch_size
+        self.batch_size = batch_size
 
     def __get_allele_seq__(self, chrom, pos, allele1, allele2, seed=-1):
         chrom = str(chrom)

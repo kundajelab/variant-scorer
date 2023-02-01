@@ -85,7 +85,7 @@ def main():
                                                     ignore_index=True,
                                                     replace=True)
 
-    shuf_variants_table['random_seed'] = np.random.shuffle(np.arange(len(shuf_variants_table)))
+    shuf_variants_table['random_seed'] = np.random.permutation(len(shuf_variants_table))
 
     print("Shuffled variants table shape:", shuf_variants_table.shape)
 
