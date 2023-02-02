@@ -20,6 +20,7 @@ def update_scoring_args(parser):
     parser.add_argument("-c", "--chrom", type=str, help="Only score SNPs in selected chromosome")
     parser.add_argument("-r", "--random_seed", type=int, default=1234, help="Random seed for reproducibility when sampling")
     parser.add_argument("--no_hdf5", action='store_true', help="Do not save detailed predictions in hdf5 file")
+    parser.add_argument("-nc", "--num_chunks", type=int, default=10, help="Number of chunks to divide SNP file into")
 
 def fetch_scoring_args():
     parser = argparse.ArgumentParser()

@@ -171,30 +171,32 @@ def main():
             shuf_abs_logfc = np.squeeze(np.abs(shuf_logfc))
             shuf_abs_logfc_jsd = shuf_abs_logfc * shuf_jsd
 
-    todo_chroms = [x for x in variants_table.chr.unique() if not os.path.exists('.'.join([args.out_prefix, str(x), "variant_predictions.h5"]))]
+    todo_chunks = [x for x in range(args.num_chunks) if not os.path.exists('.'.join([args.out_prefix, str(x), "variant_predictions.h5"]))]
+    chunk_frac = (1 / args.num_chunks)
 
-    for chrom in todo_chroms:
+    for chunk in todo_chunks:
         print()
-        print(chrom)
+        print(chunk)
         print()
 
-        chrom_variants_table = variants_table.loc[variants_table['chr'] == chrom].sort_values(by='pos').copy()
-        chrom_variants_table.reset_index(drop=True, inplace=True)
+        chunk_variants_table = variants_table.iloc[math.ceil((len(variants_table) / args.num_chunks) * chunk):
+                                                   math.ceil((len(variants_table) / args.num_chunks) * (chunk + 1))].copy()
+        chunk_variants_table.reset_index(drop=True, inplace=True)
 
-        print(str(chrom) + " variants table shape:", chrom_variants_table.shape)
+        print(str(chunk) + " variants table shape:", chunk_variants_table.shape)
         print()
 
         if args.debug_mode:
-            chrom_variants_table = chrom_variants_table.sample(10000, random_state=args.random_seed, ignore_index=True)
+            chunk_variants_table = chunk_variants_table.sample(10000, random_state=args.random_seed, ignore_index=True)
             print()
-            print(chrom_variants_table.head())
-            print("Debug " + str(chrom) + " variants table shape:", chrom_variants_table.shape)
+            print(chunk_variants_table.head())
+            print("Debug " + str(chunk) + " variants table shape:", chunk_variants_table.shape)
             print()
 
         # fetch model prediction for variants
         rsids, allele1_pred_counts, allele2_pred_counts, \
         allele1_pred_profiles, allele2_pred_profiles = fetch_variant_predictions(model,
-                                                                            chrom_variants_table,
+                                                                            chunk_variants_table,
                                                                             input_len,
                                                                             args.genome,
                                                                             args.batch_size,
@@ -218,49 +220,49 @@ def main():
                                                               allele2_pred_profiles)
 
         # unpack rsids to write outputs and write score to output
-        assert np.array_equal(chrom_variants_table["rsid"].tolist(), rsids)
-        chrom_variants_table["allele1_pred_counts"] = allele1_pred_counts
-        chrom_variants_table["allele2_pred_counts"] = allele2_pred_counts
-        chrom_variants_table["logfc"] = logfc
-        chrom_variants_table["abs_logfc"] = abs(chrom_variants_table["logfc"])
-        chrom_variants_table["jsd"] = jsd
-        chrom_variants_table["abs_logfc_x_jsd"] = chrom_variants_table["abs_logfc"] * chrom_variants_table["jsd"]
+        assert np.array_equal(chunk_variants_table["rsid"].tolist(), rsids)
+        chunk_variants_table["allele1_pred_counts"] = allele1_pred_counts
+        chunk_variants_table["allele2_pred_counts"] = allele2_pred_counts
+        chunk_variants_table["logfc"] = logfc
+        chunk_variants_table["abs_logfc"] = abs(chunk_variants_table["logfc"])
+        chunk_variants_table["jsd"] = jsd
+        chunk_variants_table["abs_logfc_x_jsd"] = chunk_variants_table["abs_logfc"] * chunk_variants_table["jsd"]
 
         if len(shuf_variants_table) > 0:
-            chrom_variants_table["logfc_pval"] = chrom_variants_table["logfc"].apply(lambda x:
+            chunk_variants_table["logfc_pval"] = chunk_variants_table["logfc"].apply(lambda x:
                                                                                      2 * min(scipy.stats.percentileofscore(shuf_logfc, x) / 100,
                                                                                              1 - (scipy.stats.percentileofscore(shuf_logfc, x) / 100)))
-            chrom_variants_table["jsd_pval"] = chrom_variants_table["jsd"].apply(lambda x:
+            chunk_variants_table["jsd_pval"] = chunk_variants_table["jsd"].apply(lambda x:
                                                                              1 - (scipy.stats.percentileofscore(shuf_jsd, x) / 100))
-            chrom_variants_table["abs_logfc_x_jsd_pval"] = chrom_variants_table["abs_logfc_x_jsd"].apply(lambda x:
+            chunk_variants_table["abs_logfc_x_jsd_pval"] = chunk_variants_table["abs_logfc_x_jsd"].apply(lambda x:
                                                                              1 - (scipy.stats.percentileofscore(shuf_abs_logfc_jsd, x) / 100))
 
         if args.peaks:
-            chrom_variants_table["allele1_percentile"] = allele1_percentile
-            chrom_variants_table["allele2_percentile"] = allele2_percentile
-            chrom_variants_table["max_percentile"] = chrom_variants_table[["allele1_percentile", "allele2_percentile"]].max(axis=1)
-            chrom_variants_table["percentile_change"] = chrom_variants_table["allele2_percentile"] - chrom_variants_table["allele1_percentile"]
-            chrom_variants_table["abs_logfc_x_jsd_x_max_percentile"] = chrom_variants_table["abs_logfc_x_jsd"] * chrom_variants_table["max_percentile"]
+            chunk_variants_table["allele1_percentile"] = allele1_percentile
+            chunk_variants_table["allele2_percentile"] = allele2_percentile
+            chunk_variants_table["max_percentile"] = chunk_variants_table[["allele1_percentile", "allele2_percentile"]].max(axis=1)
+            chunk_variants_table["percentile_change"] = chunk_variants_table["allele2_percentile"] - chunk_variants_table["allele1_percentile"]
+            chunk_variants_table["abs_logfc_x_jsd_x_max_percentile"] = chunk_variants_table["abs_logfc_x_jsd"] * chunk_variants_table["max_percentile"]
 
             if len(shuf_variants_table) > 0:
-                chrom_variants_table["max_percentile_pval"] = chrom_variants_table["max_percentile"].apply(lambda x:
+                chunk_variants_table["max_percentile_pval"] = chunk_variants_table["max_percentile"].apply(lambda x:
                                                                              1 - (scipy.stats.percentileofscore(shuf_max_percentile, x) / 100))
-                chrom_variants_table["percentile_change_pval"] = chrom_variants_table["percentile_change"].apply(lambda x:
+                chunk_variants_table["percentile_change_pval"] = chunk_variants_table["percentile_change"].apply(lambda x:
                                                                                          2 * min(scipy.stats.percentileofscore(shuf_percentile_change, x) / 100,
                                                                                                  1 - (scipy.stats.percentileofscore(shuf_percentile_change, x) / 100)))
-                chrom_variants_table["abs_logfc_x_jsd_x_max_percentile_pval"] = chrom_variants_table["abs_logfc_x_jsd_x_max_percentile"].apply(lambda x:
+                chunk_variants_table["abs_logfc_x_jsd_x_max_percentile_pval"] = chunk_variants_table["abs_logfc_x_jsd_x_max_percentile"].apply(lambda x:
                                                             1 - (scipy.stats.percentileofscore(shuf_abs_logfc_jsd_max_percentile, x) / 100))
 
         print()
-        print(chrom_variants_table.head())
-        print("Output " + str(chrom) + " score table shape:", chrom_variants_table.shape)
+        print(chunk_variants_table.head())
+        print("Output " + str(chunk) + " score table shape:", chunk_variants_table.shape)
         print()
 
-        chrom_variants_table.to_csv('.'.join([args.out_prefix, chrom, "variant_scores.tsv"]), sep="\t", index=False)
+        chunk_variants_table.to_csv('.'.join([args.out_prefix, str(chunk), "variant_scores.tsv"]), sep="\t", index=False)
 
         # store predictions at variants
         if not args.no_hdf5:
-            with h5py.File('.'.join([args.out_prefix, chrom, "variant_predictions.h5"]), 'w') as f:
+            with h5py.File('.'.join([args.out_prefix, str(chunk), "variant_predictions.h5"]), 'w') as f:
                 observed = f.create_group('observed')
                 observed.create_dataset('allele1_pred_counts', data=allele1_pred_counts, compression='gzip', compression_opts=9)
                 observed.create_dataset('allele2_pred_counts', data=allele2_pred_counts, compression='gzip', compression_opts=9)
@@ -279,7 +281,7 @@ def main():
                         shuffled.create_dataset('shuf_percentile_change', data=shuf_percentile_change, compression='gzip', compression_opts=9)
                         shuffled.create_dataset('shuf_abs_logfc_x_jsd_x_max_percentile', data=shuf_abs_logfc_jsd_max_percentile, compression='gzip', compression_opts=9)
 
-        print("DONE:", str(chrom))
+        print("DONE:", str(chunk))
         print()
 
 
