@@ -9,6 +9,7 @@ import argparse
 import numpy as np
 import h5py
 import math
+import sys
 sys.path.append('..')
 from generators.snp_generator import SNPGenerator
 from generators.peak_generator import PeakGenerator
