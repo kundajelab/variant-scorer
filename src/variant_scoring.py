@@ -40,8 +40,8 @@ def main():
     # load the variants
     variants_table = pd.read_csv(args.list, header=None, sep='\t', names=SNP_SCHEMA[args.schema])
     variants_table.drop(columns=[str(x) for x in variants_table.columns if str(x).startswith('ignore')], inplace=True)
-    variants_table['chr'] = variants_table['chr'].astype(str).str.lower()
-    has_chr_prefix = any('chr' in x for x in variants_table['chr'].tolist())
+    variants_table['chr'] = variants_table['chr'].astype(str)
+    has_chr_prefix = any('chr' in x.lower() for x in variants_table['chr'].tolist())
     if not has_chr_prefix:
         variants_table['chr'] = 'chr' + variants_table['chr']
 
@@ -272,24 +272,30 @@ def main():
 
 def get_valid_peaks(chrom, pos, summit, input_len, chrom_sizes_dict):
     valid_chrom = chrom in chrom_sizes_dict
-    flank = input_len // 2
-    lower_check = ((pos + summit) - flank > 0)
-    upper_check = ((pos + summit) + flank <= chrom_sizes_dict[chrom])
-    in_bounds = lower_check and upper_check
-    valid_peak = valid_chrom and in_bounds
-    return valid_peak
+    if valid_chrom:
+        flank = input_len // 2
+        lower_check = ((pos + summit) - flank > 0)
+        upper_check = ((pos + summit) + flank <= chrom_sizes_dict[chrom])
+        in_bounds = lower_check and upper_check
+        valid_peak = valid_chrom and in_bounds
+        return valid_peak
+    else:
+        return False
 
 def get_valid_variants(chrom, pos, allele1, allele2, input_len, chrom_sizes_dict):
     valid_chrom = chrom in chrom_sizes_dict
-    flank = input_len // 2
-    lower_check = (pos - flank > 0)
-    upper_check = (pos + flank <= chrom_sizes_dict[chrom])
-    in_bounds = lower_check and upper_check
-    no_allele1_indel = (len(allele1) == 1)
-    no_allele2_indel = (len(allele2) == 1)
-    no_indel = no_allele1_indel and no_allele2_indel
-    valid_variant = valid_chrom and in_bounds and no_indel
-    return valid_variant
+    if valid_chrom:
+        flank = input_len // 2
+        lower_check = (pos - flank > 0)
+        upper_check = (pos + flank <= chrom_sizes_dict[chrom])
+        in_bounds = lower_check and upper_check
+        no_allele1_indel = (len(allele1) == 1)
+        no_allele2_indel = (len(allele2) == 1)
+        no_indel = no_allele1_indel and no_allele2_indel
+        valid_variant = valid_chrom and in_bounds and no_indel
+        return valid_variant
+    else:
+        return False
 
 def softmax(x, temp=1):
     norm_x = x - np.mean(x,axis=1, keepdims=True)

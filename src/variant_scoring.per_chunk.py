@@ -40,8 +40,8 @@ def main():
     # load the variants
     variants_table = pd.read_csv(args.list, header=None, sep='\t', names=SNP_SCHEMA[args.schema])
     variants_table.drop(columns=[str(x) for x in variants_table.columns if str(x).startswith('ignore')], inplace=True)
-    variants_table['chr'] = variants_table['chr'].astype(str).str.lower()
-    has_chr_prefix = any('chr' in x for x in variants_table['chr'].tolist())
+    variants_table['chr'] = variants_table['chr'].astype(str)
+    has_chr_prefix = any('chr' in x.lower() for x in variants_table['chr'].tolist())
     if not has_chr_prefix:
         variants_table['chr'] = 'chr' + variants_table['chr']
 
