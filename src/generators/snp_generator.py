@@ -13,8 +13,7 @@ class SNPGenerator(Sequence):
                  genome_fasta,
                  batch_size=512,
                  debug_mode=False,
-                 shuf=False,
-                 num_shuf=10):
+                 shuf=False):
 
         self.variants_table = variants_table
         self.num_variants = self.variants_table.shape[0]
@@ -23,7 +22,6 @@ class SNPGenerator(Sequence):
         self.debug_mode = debug_mode
         self.flank_size = self.input_len // 2
         self.shuf = shuf
-        self.num_shuf = num_shuf
         self.batch_size = batch_size
 
     def __get_allele_seq__(self, chrom, pos, allele1, allele2, seed=-1):
