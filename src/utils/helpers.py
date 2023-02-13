@@ -20,7 +20,7 @@ from utils import argmanager, losses
 def get_snp_schema(schema):
     SNP_SCHEMA = {'original': ["chr", "pos", "rsid", "allele1", "allele2"],
                   'plink': ["chr", "rsid", "ignore1", "pos", "allele1", "allele2"],
-                  'bed': ['chr', 'start', 'pos', 'allele1', 'allele2', 'rsid', 'snp_id'],
+                  'bed': ['chr', 'start', 'pos', 'allele1', 'allele2', 'rsid'],
                   'chrombpnet': ["chr", "pos", "allele1", "allele2", "rsid"]}
     return SNP_SCHEMA[schema]
 
