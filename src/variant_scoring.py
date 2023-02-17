@@ -19,7 +19,9 @@ def main():
     print(args)
 
     np.random.seed(args.random_seed)
-
+    if args.forward_only:
+        print("running variant scoring only for forward sequences")
+    
     out_dir = os.path.sep.join(args.out_prefix.split(os.path.sep)[:-1])
     if not os.path.exists(out_dir):
         raise OSError("Output directory does not exist")
@@ -69,7 +71,8 @@ def main():
                                                                             args.batch_size,
                                                                             debug_mode=args.debug_mode,
                                                                             lite=args.lite,
-                                                                            shuf=True)
+                                                                            shuf=True,
+                                                                            forward_only=args.forward_only)
 
     if args.peaks:
         if args.peak_chrom_sizes == None:
@@ -109,7 +112,8 @@ def main():
                                                             args.peak_genome,
                                                             args.batch_size,
                                                             debug_mode=args.debug_mode,
-                                                            lite=args.lite)
+                                                            lite=args.lite,
+                                                            forward_only=args.forward_only)
 
         if len(shuf_variants_table) > 0:
             shuf_logfc, shuf_jsd, \
@@ -161,7 +165,8 @@ def main():
                                                                         args.batch_size,
                                                                         debug_mode=args.debug_mode,
                                                                         lite=args.lite,
-                                                                        shuf=False)
+                                                                        shuf=False,
+                                                                        forward_only=args.forward_only)
 
     if args.peaks:
         logfc, jsd, \
