@@ -12,17 +12,17 @@ import math
 from tqdm import tqdm
 import sys
 sys.path.append('..')
-from generators.snp_generator import SNPGenerator
+from generators.variant_generator import VariantGenerator
 from generators.peak_generator import PeakGenerator
 from utils import argmanager, losses
 
 
-def get_snp_schema(schema):
-    SNP_SCHEMA = {'original': ["chr", "pos", "rsid", "allele1", "allele2"],
+def get_variant_schema(schema):
+    var_SCHEMA = {'original': ["chr", "pos", "rsid", "allele1", "allele2"],
                   'plink': ["chr", "rsid", "ignore1", "pos", "allele1", "allele2"],
                   'bed': ['chr', 'start', 'pos', 'allele1', 'allele2', 'rsid'],
                   'chrombpnet': ["chr", "pos", "allele1", "allele2", "rsid"]}
-    return SNP_SCHEMA[schema]
+    return var_SCHEMA[schema]
 
 def get_peak_schema(schema):
     PEAK_SCHEMA = {'narrowpeak': ['chr', 'start', 'end', 3, 4, 5, 6, 7, 'rank', 'summit']}
@@ -47,10 +47,11 @@ def get_valid_variants(chrom, pos, allele1, allele2, input_len, chrom_sizes_dict
         lower_check = (pos - flank > 0)
         upper_check = (pos + flank <= chrom_sizes_dict[chrom])
         in_bounds = lower_check and upper_check
-        no_allele1_indel = (len(allele1) == 1)
-        no_allele2_indel = (len(allele2) == 1)
-        no_indel = no_allele1_indel and no_allele2_indel
-        valid_variant = valid_chrom and in_bounds and no_indel
+        # no_allele1_indel = (len(allele1) == 1)
+        # no_allele2_indel = (len(allele2) == 1)
+        # no_indel = no_allele1_indel and no_allele2_indel
+        # valid_variant = valid_chrom and in_bounds and no_indel
+        valid_variant = valid_chrom and in_bounds
         return valid_variant
     else:
         return False
@@ -107,17 +108,17 @@ def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, ba
     allele1_pred_profiles = []
     allele2_pred_profiles = []
 
-    # snp sequence generator
-    snp_gen = SNPGenerator(variants_table=variants_table,
+    # variant sequence generator
+    var_gen = VariantGenerator(variants_table=variants_table,
                            input_len=input_len,
                            genome_fasta=genome_fasta,
                            batch_size=batch_size,
-                           debug_mode=debug_mode,
+                           debug_mode=False,
                            shuf=shuf)
 
-    for i in tqdm(range(len(snp_gen))):
+    for i in tqdm(range(len(var_gen))):
 
-        batch_rsids, allele1_seqs, allele2_seqs = snp_gen[i]
+        batch_rsids, allele1_seqs, allele2_seqs = var_gen[i]
 
         if lite:
             allele1_batch_preds = model.predict([allele1_seqs,
@@ -154,8 +155,11 @@ def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, ba
 
 def get_variant_scores_with_peaks(allele1_pred_counts, allele2_pred_counts,
                        allele1_pred_profiles, allele2_pred_profiles, pred_counts):
-    logfc = np.log2(allele2_pred_counts / allele1_pred_counts)
-    jsd = np.array([jensenshannon(x,y) for x,y in zip(allele2_pred_profiles, allele1_pred_profiles)])
+    # logfc = np.log2(allele2_pred_counts / allele1_pred_counts)
+    # jsd = np.array([jensenshannon(x,y) for x,y in zip(allele2_pred_profiles, allele1_pred_profiles)])
+
+    logfc, jsd = get_variant_scores(allele1_pred_counts, allele2_pred_counts,
+                                    allele1_pred_profiles, allele2_pred_profiles)
     allele1_percentile = np.array([np.mean(pred_counts < x) for x in allele1_pred_counts])
     allele2_percentile = np.array([np.mean(pred_counts < x) for x in allele2_pred_counts])
 
@@ -173,17 +177,17 @@ def fetch_shap(model, variants_table, input_len, genome_fasta, batch_size, debug
     allele1_counts_shap = []
     allele2_counts_shap = []
 
-    # snp sequence generator
-    snp_gen = SNPGenerator(variants_table=variants_table,
+    # variant sequence generator
+    var_gen = VariantGenerator(variants_table=variants_table,
                            input_len=input_len,
                            genome_fasta=genome_fasta,
                            batch_size=batch_size,
-                           debug_mode=debug_mode,
+                           debug_mode=False,
                            shuf=shuf)
 
-    for i in tqdm(range(len(snp_gen))):
+    for i in tqdm(range(len(var_gen))):
 
-        batch_rsids, allele1_seqs, allele2_seqs = snp_gen[i]
+        batch_rsids, allele1_seqs, allele2_seqs = var_gen[i]
 
         if lite:
             counts_model_input = [model.input[0], model.input[2]]
@@ -227,3 +231,83 @@ def fetch_shap(model, variants_table, input_len, genome_fasta, batch_size, debug
         rsids.extend(batch_rsids)
 
     return np.array(rsids), np.array(allele1_counts_shap), np.array(allele2_counts_shap)
+
+def adjust_indel_jsd(variants_table,allele1_pred_profiles,allele2_pred_profiles,original_jsd):
+    indel_idx = []
+    for i, row in variants_table.iterrows():
+        if len(row['allele1']) != 1 or len(row['allele2']) != 1:
+            indel_idx += [i]
+            
+    adjusted_jsd = []
+    for i in indel_idx:
+        row = variants_table.iloc[i]
+        allele1, allele2 = row[['allele1','allele2']]
+        allele1_length = len(allele1)
+        allele2_length = len(allele2)
+
+        allele1_p = allele1_pred_profiles[i]
+        allele2_p = allele2_pred_profiles[i]
+        assert len(allele1_p) == len(allele2_p)
+        flank_size = len(allele1_p)//2
+        allele1_left_flank = allele1_p[:flank_size]
+        allele2_left_flank = allele2_p[:flank_size]
+
+        if allele1_length > allele2_length:
+            allele1_right_flank = np.concatenate([allele1_p[flank_size:flank_size+allele2_length],allele1_p[flank_size+allele1_length:]])
+            allele2_right_flank = allele2_p[flank_size:allele2_length-allele1_length]
+        else:
+            allele1_right_flank = allele1_p[flank_size:allele1_length-allele2_length]
+            allele2_right_flank = np.concatenate([allele2_p[flank_size:flank_size+allele1_length], allele2_p[flank_size+allele2_length:]])
+
+
+        adjusted_allele1_p = np.concatenate([allele1_left_flank,allele1_right_flank])
+        adjusted_allele2_p = np.concatenate([allele2_left_flank,allele2_right_flank])
+        adjusted_allele1_p = adjusted_allele1_p/np.sum(adjusted_allele1_p)
+        adjusted_allele2_p = adjusted_allele2_p/np.sum(adjusted_allele2_p)
+        assert len(adjusted_allele1_p) == len(adjusted_allele2_p)
+        adjusted_j = jensenshannon(adjusted_allele1_p,adjusted_allele2_p) 
+        adjusted_jsd += [adjusted_j]
+    
+    adjusted_jsd_list = original_jsd.copy()
+    if len(indel_idx) > 0:
+        for i in range(len(indel_idx)):
+            idx = indel_idx[i]
+            adjusted_jsd_list[idx] = adjusted_jsd[i]
+        
+    return indel_idx, adjusted_jsd_list
+
+
+def load_variant_table(table_path, schema):
+    variants_table = pd.read_csv(table_path, header=None, sep='\t', names=get_variant_schema(schema))
+    variants_table.drop(columns=[str(x) for x in variants_table.columns if str(x).startswith('ignore')], inplace=True)
+    variants_table['chr'] = variants_table['chr'].astype(str)
+    has_chr_prefix = any('chr' in x.lower() for x in variants_table['chr'].tolist())
+    if not has_chr_prefix:
+        variants_table['chr'] = 'chr' + variants_table['chr']
+    return variants_table
+
+def create_shuffle_table(variants_table,random_seed=None,total_shuf=None, num_shuf=None):
+    if total_shuf:
+        if len(variants_table) > total_shuf:
+            shuf_variants_table = variants_table.sample(total_shuf,
+                                                        random_state=random_seed,
+                                                        ignore_index=True,
+                                                        replace=False)
+        else:
+            shuf_variants_table = variants_table.sample(total_shuf,
+                                                        random_state=random_seed,
+                                                        ignore_index=True,
+                                                        replace=True) 
+        shuf_variants_table['random_seed'] = np.random.permutation(len(shuf_variants_table))
+    else:
+        if num_shuf:
+            total_shuf = len(variants_table) * num_shuf
+            shuf_variants_table = variants_table.sample(total_shuf,
+                                                        random_state=random_seed,
+                                                        ignore_index=True,
+                                                        replace=True)
+            shuf_variants_table['random_seed'] = np.random.permutation(len(shuf_variants_table))
+        else:
+            ## empty dataframe
+            shuf_variants_table = pd.DataFrame()
+    return shuf_variants_table

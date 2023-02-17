@@ -9,11 +9,10 @@ import argparse
 import numpy as np
 import h5py
 import math
-from generators.snp_generator import SNPGenerator
+from generators.variant_generator import VariantGenerator
 from generators.peak_generator import PeakGenerator
 from utils import argmanager, losses
 from utils.helpers import *
-
 
 def main():
     args = argmanager.fetch_scoring_args()
@@ -25,16 +24,9 @@ def main():
     if not os.path.exists(out_dir):
         raise OSError("Output directory does not exist")
 
-    # load the model
+    # load the model and variants
     model = load_model_wrapper(args.model)
-
-    # load the variants
-    variants_table = pd.read_csv(args.list, header=None, sep='\t', names=get_snp_schema(args.schema))
-    variants_table.drop(columns=[str(x) for x in variants_table.columns if str(x).startswith('ignore')], inplace=True)
-    variants_table['chr'] = variants_table['chr'].astype(str)
-    has_chr_prefix = any('chr' in x.lower() for x in variants_table['chr'].tolist())
-    if not has_chr_prefix:
-        variants_table['chr'] = 'chr' + variants_table['chr']
+    variants_table=load_variant_table(args.list, args.schema)
 
     chrom_sizes = pd.read_csv(args.chrom_sizes, header=None, sep='\t', names=['chrom', 'size'])
     chrom_sizes_dict = chrom_sizes.set_index('chrom')['size'].to_dict()
@@ -58,26 +50,7 @@ def main():
 
     print("Final variants table shape:", variants_table.shape)
 
-    if args.total_shuf:
-        if len(variants_table) > args.total_shuf:
-            shuf_variants_table = variants_table.sample(args.total_shuf,
-                                                        random_state=args.random_seed,
-                                                        ignore_index=True,
-                                                        replace=False)
-        else:
-            shuf_variants_table = variants_table.sample(args.total_shuf,
-                                                        random_state=args.random_seed,
-                                                        ignore_index=True,
-                                                        replace=True)
-    else:
-        total_shuf = len(variants_table) * args.num_shuf
-        shuf_variants_table = variants_table.sample(args.total_shuf,
-                                                    random_state=args.random_seed,
-                                                    ignore_index=True,
-                                                    replace=True)
-
-    shuf_variants_table['random_seed'] = np.random.permutation(len(shuf_variants_table))
-
+    shuf_variants_table = create_shuffle_table(variants_table,args.random_seed, args.total_shuf, args.num_shuf)
     print("Shuffled variants table shape:", shuf_variants_table.shape)
 
     if len(shuf_variants_table) > 0:
@@ -141,11 +114,15 @@ def main():
         if len(shuf_variants_table) > 0:
             shuf_logfc, shuf_jsd, \
             shuf_allele1_percentile, shuf_allele2_percentile = get_variant_scores_with_peaks(shuf_allele1_pred_counts,
-                                                                                             shuf_allele2_pred_counts,
-                                                                                             shuf_allele1_pred_profiles,
-                                                                                             shuf_allele2_pred_profiles,
-                                                                                             pred_counts)
-
+                                                                                            shuf_allele2_pred_counts,
+                                                                                            shuf_allele1_pred_profiles,
+                                                                                            shuf_allele2_pred_profiles,
+                                                                                            pred_counts)
+            _, shuf_jsd = adjust_indel_jsd(shuf_variants_table,
+                                        shuf_allele1_pred_profiles,
+                                        shuf_allele2_pred_profiles,
+                                        shuf_jsd)
+            
             shuf_max_percentile = np.maximum(shuf_allele1_percentile, shuf_allele2_percentile)
             shuf_percentile_change = shuf_allele2_percentile - shuf_allele1_percentile
             shuf_abs_logfc = np.squeeze(np.abs(shuf_logfc))
@@ -155,11 +132,18 @@ def main():
     else:
         if len(shuf_variants_table) > 0:
             shuf_logfc, shuf_jsd = get_variant_scores(shuf_allele1_pred_counts,
-                                                      shuf_allele2_pred_counts,
-                                                      shuf_allele1_pred_profiles,
-                                                      shuf_allele2_pred_profiles)
+                                                    shuf_allele2_pred_counts,
+                                                    shuf_allele1_pred_profiles,
+                                                    shuf_allele2_pred_profiles)
+            
+            _, shuf_jsd = adjust_indel_jsd(shuf_variants_table,
+                                shuf_allele1_pred_profiles,
+                                shuf_allele2_pred_profiles,
+                                shuf_jsd)
+                
             shuf_abs_logfc = np.squeeze(np.abs(shuf_logfc))
             shuf_abs_logfc_jsd = shuf_abs_logfc * shuf_jsd
+
 
     if args.debug_mode:
         variants_table = variants_table.sample(10000, random_state=args.random_seed, ignore_index=True)
@@ -189,9 +173,12 @@ def main():
 
     else:
         logfc, jsd = get_variant_scores(allele1_pred_counts,
-                                                            allele2_pred_counts,
-                                                            allele1_pred_profiles,
-                                                            allele2_pred_profiles)
+                                        allele2_pred_counts,
+                                        allele1_pred_profiles,
+                                        allele2_pred_profiles)
+
+    indel_idx, adjusted_jsd_list = adjust_indel_jsd(variants_table,allele1_pred_profiles,allele2_pred_profiles,jsd)
+    have_indel_variants = (len(indel_idx) > 0)
 
     # unpack rsids to write outputs and write score to output
     assert np.array_equal(variants_table["rsid"].tolist(), rsids)
@@ -200,17 +187,24 @@ def main():
     variants_table["logfc"] = logfc
     variants_table["abs_logfc"] = abs(variants_table["logfc"])
     variants_table["jsd"] = jsd
-    variants_table["abs_logfc_x_jsd"] = variants_table["abs_logfc"] * variants_table["jsd"]
+    if have_indel_variants:
+        variants_table["adjusted_jsd"] = adjusted_jsd_list
+        variants_table["abs_logfc_x_jsd"] = variants_table["abs_logfc"] * variants_table["adjusted_jsd"]
+    else:
+        variants_table["abs_logfc_x_jsd"] = variants_table["abs_logfc"] * variants_table["jsd"]
 
     if len(shuf_variants_table) > 0:
         variants_table["logfc_pval"] = variants_table["logfc"].apply(lambda x:
                                                                                     2 * min(scipy.stats.percentileofscore(shuf_logfc, x) / 100,
                                                                                             1 - (scipy.stats.percentileofscore(shuf_logfc, x) / 100)))
-        variants_table["jsd_pval"] = variants_table["jsd"].apply(lambda x:
+        if have_indel_variants:
+            variants_table["jsd_pval"] = variants_table["adjusted_jsd"].apply(lambda x:
                                                                             1 - (scipy.stats.percentileofscore(shuf_jsd, x) / 100))
+        else:
+            variants_table["jsd_pval"] = variants_table["jsd"].apply(lambda x:
+                                                                    1 - (scipy.stats.percentileofscore(shuf_jsd, x) / 100))
         variants_table["abs_logfc_x_jsd_pval"] = variants_table["abs_logfc_x_jsd"].apply(lambda x:
                                                                             1 - (scipy.stats.percentileofscore(shuf_abs_logfc_jsd, x) / 100))
-
     if args.peaks:
         variants_table["allele1_percentile"] = allele1_percentile
         variants_table["allele2_percentile"] = allele2_percentile
