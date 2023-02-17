@@ -71,6 +71,8 @@ def load_model_wrapper(model_file):
 def fetch_peak_predictions(model, peaks, input_len, genome_fasta, batch_size, debug_mode=False, lite=False):
     pred_counts = []
     pred_profiles = []
+    revcomp_counts = []
+    revcomp_profiles = []
 
     # peak sequence generator
     peak_gen = PeakGenerator(peaks=peaks,
@@ -80,26 +82,39 @@ def fetch_peak_predictions(model, peaks, input_len, genome_fasta, batch_size, de
                              debug_mode=debug_mode)
 
     for i in tqdm(range(len(peak_gen))):
-
         seqs = peak_gen[i]
+        revcomp_seq = seqs[:, ::-1, ::-1]
 
         if lite:
             batch_preds = model.predict([seqs,
                                          np.zeros((len(seqs), model.output_shape[0][1])),
                                          np.zeros((len(seqs), ))],
                                         verbose=False)
+            revcomp_batch_preds = model.predict([revcomp_seq,
+                                         np.zeros((len(revcomp_seq), model.output_shape[0][1])),
+                                         np.zeros((len(revcomp_seq), ))],
+                                        verbose=False)
         else:
             batch_preds = model.predict(seqs, verbose=False)
+            revcomp_batch_preds = model.predict(revcomp_seq, verbose=False)
 
         batch_preds[1] = np.array([batch_preds[1][i] for i in range(len(batch_preds[1]))])
+        revcomp_batch_preds[1] = np.array([revcomp_batch_preds[1][i] for i in range(len(revcomp_batch_preds[1]))])
+        
         pred_counts.extend(np.exp(batch_preds[1]))
         pred_profiles.extend(np.squeeze(softmax(batch_preds[0])))
+        revcomp_counts.extend(np.exp(revcomp_batch_preds[1]))
+        revcomp_profiles.extend(np.squeeze(softmax(revcomp_batch_preds[0])))
 
 
     pred_counts = np.array(pred_counts)
     pred_profiles = np.array(pred_profiles)
-
-    return pred_counts, pred_profiles
+    revcomp_counts = np.array(revcomp_counts)
+    revcomp_profiles = np.array(revcomp_profiles)
+    
+    average_counts = np.average([pred_counts,revcomp_counts],axis=0)
+    average_profiles = np.average([pred_profiles,revcomp_profiles[:,::-1]],axis=0)
+    return average_counts,average_profiles
 
 def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, batch_size, debug_mode=False, lite=False, shuf=False):
     rsids = []
@@ -107,6 +122,10 @@ def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, ba
     allele2_pred_counts = []
     allele1_pred_profiles = []
     allele2_pred_profiles = []
+    revcomp_allele1_pred_counts = []
+    revcomp_allele2_pred_counts = []
+    revcomp_allele1_pred_profiles = []
+    revcomp_allele2_pred_profiles = []
 
     # variant sequence generator
     var_gen = VariantGenerator(variants_table=variants_table,
@@ -119,6 +138,8 @@ def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, ba
     for i in tqdm(range(len(var_gen))):
 
         batch_rsids, allele1_seqs, allele2_seqs = var_gen[i]
+        revcomp_allele1_seqs = allele1_seqs[:, ::-1, ::-1]
+        revcomp_allele2_seqs = allele2_seqs[:, ::-1, ::-1]
 
         if lite:
             allele1_batch_preds = model.predict([allele1_seqs,
@@ -129,18 +150,34 @@ def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, ba
                                                  np.zeros((len(allele2_seqs), model.output_shape[0][1])),
                                                  np.zeros((len(allele2_seqs), ))],
                                                 verbose=False)
+            revcomp_allele1_batch_preds = model.predict([revcomp_allele1_seqs,
+                                                 np.zeros((len(revcomp_allele1_seqs), model.output_shape[0][1])),
+                                                 np.zeros((len(revcomp_allele1_seqs), ))],
+                                                verbose=False)
+            revcomp_allele2_batch_preds = model.predict([revcomp_allele2_seqs,
+                                     np.zeros((len(revcomp_allele2_seqs), model.output_shape[0][1])),
+                                     np.zeros((len(revcomp_allele2_seqs), ))],
+                                    verbose=False)
         else:
             allele1_batch_preds = model.predict(allele1_seqs, verbose=False)
             allele2_batch_preds = model.predict(allele2_seqs, verbose=False)
+            revcomp_allele1_batch_preds = model.predict(revcomp_allele1_seqs, verbose=False)
+            revcomp_allele2_batch_preds = model.predict(revcomp_allele2_seqs, verbose=False)
 
         allele1_batch_preds[1] = np.array([allele1_batch_preds[1][i] for i in range(len(allele1_batch_preds[1]))])
         allele2_batch_preds[1] = np.array([allele2_batch_preds[1][i] for i in range(len(allele2_batch_preds[1]))])
+        revcomp_allele1_batch_preds[1] = np.array([revcomp_allele1_batch_preds[1][i] for i in range(len(revcomp_allele1_batch_preds[1]))])
+        revcomp_allele2_batch_preds[1] = np.array([revcomp_allele2_batch_preds[1][i] for i in range(len(revcomp_allele2_batch_preds[1]))])
 
         allele1_pred_counts.extend(np.exp(allele1_batch_preds[1]))
         allele2_pred_counts.extend(np.exp(allele2_batch_preds[1]))
+        revcomp_allele1_pred_counts.extend(np.exp(revcomp_allele1_batch_preds[1]))
+        revcomp_allele2_pred_counts.extend(np.exp(revcomp_allele2_batch_preds[1]))
 
         allele1_pred_profiles.extend(np.squeeze(softmax(allele1_batch_preds[0])))
         allele2_pred_profiles.extend(np.squeeze(softmax(allele2_batch_preds[0])))
+        revcomp_allele1_pred_profiles.extend(np.squeeze(softmax(revcomp_allele1_batch_preds[0])))
+        revcomp_allele2_pred_profiles.extend(np.squeeze(softmax(revcomp_allele2_batch_preds[0])))
 
         rsids.extend(batch_rsids)
 
@@ -149,9 +186,19 @@ def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, ba
     allele2_pred_counts = np.array(allele2_pred_counts)
     allele1_pred_profiles = np.array(allele1_pred_profiles)
     allele2_pred_profiles = np.array(allele2_pred_profiles)
+    revcomp_allele1_pred_counts = np.array(revcomp_allele1_pred_counts)
+    revcomp_allele2_pred_counts = np.array(revcomp_allele2_pred_counts)
+    revcomp_allele1_pred_profiles = np.array(revcomp_allele1_pred_profiles)
+    revcomp_allele2_pred_profiles = np.array(revcomp_allele2_pred_profiles)
+    
+    average_allele1_pred_counts = np.average([allele1_pred_counts,revcomp_allele1_pred_counts],axis=0)
+    average_allele1_pred_profiles = np.average([allele1_pred_profiles,revcomp_allele1_pred_profiles[:,::-1]],axis=0)
+    average_allele2_pred_counts = np.average([allele2_pred_counts,revcomp_allele2_pred_counts],axis=0)
+    average_allele2_pred_profiles = np.average([allele2_pred_profiles,revcomp_allele2_pred_profiles[:,::-1]],axis=0)
 
-    return rsids, allele1_pred_counts, allele2_pred_counts, \
-           allele1_pred_profiles, allele2_pred_profiles
+    return rsids, average_allele1_pred_counts, average_allele2_pred_counts, \
+           average_allele1_pred_profiles, average_allele2_pred_profiles
+
 
 def get_variant_scores_with_peaks(allele1_pred_counts, allele2_pred_counts,
                        allele1_pred_profiles, allele2_pred_profiles, pred_counts):
