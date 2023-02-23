@@ -29,7 +29,8 @@ def main():
     # load the model and variants
     model = load_model_wrapper(args.model)
     variants_table=load_variant_table(args.list, args.schema)
-
+    variants_table = variants_table.fillna('-')
+    
     chrom_sizes = pd.read_csv(args.chrom_sizes, header=None, sep='\t', names=['chrom', 'size'])
     chrom_sizes_dict = chrom_sizes.set_index('chrom')['size'].to_dict()
 

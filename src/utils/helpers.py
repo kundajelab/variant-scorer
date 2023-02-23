@@ -296,13 +296,23 @@ def fetch_shap(model, variants_table, input_len, genome_fasta, batch_size, debug
 def adjust_indel_jsd(variants_table,allele1_pred_profiles,allele2_pred_profiles,original_jsd):
     indel_idx = []
     for i, row in variants_table.iterrows():
-        if len(row['allele1']) != 1 or len(row['allele2']) != 1:
+        allele1, allele2 = row[['allele1','allele2']]
+        if allele1 == "-":
+            allele1 = ""
+        if allele2 == "-":
+            allele2 = ""
+        if len(allele1) != 1 or len(allele2) != 1:
             indel_idx += [i]
             
     adjusted_jsd = []
     for i in indel_idx:
         row = variants_table.iloc[i]
         allele1, allele2 = row[['allele1','allele2']]
+        if allele1 == "-":
+            allele1 = ""
+        if allele2 == "-":
+            allele2 = ""
+            
         allele1_length = len(allele1)
         allele2_length = len(allele2)
 

@@ -30,6 +30,10 @@ class VariantGenerator(Sequence):
         allele1 = str(allele1)
         allele2 = str(allele2)
         
+        if allele1 == "-":
+            allele1 = ""
+        if allele2 == "-":
+            allele2 = ""
         ### 1 - indexed position 
         pos = pos - 1
         if len(allele1) == 1 and len(allele2) == 1:
