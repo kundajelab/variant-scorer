@@ -1,11 +1,27 @@
 # Av's code with a bit of reformatting
 # Adapted from Zahoor's mtbatchgen
 
-import numpy as np
-import shap
+from tensorflow.keras.utils import get_custom_objects
+from tensorflow.keras.models import load_model
 import tensorflow as tf
-
+import scipy.stats
+from scipy.spatial.distance import jensenshannon
+import pandas as pd
+import os
+import argparse
+import numpy as np
+import h5py
+import math
+from tqdm import tqdm
+import sys
+sys.path.append('..')
+from generators.variant_generator import SNPGenerator
+from generators.peak_generator import PeakGenerator
+from utils import argmanager, losses
+import shap
 from deeplift.dinuc_shuffle import dinuc_shuffle
+tf.compat.v1.disable_v2_behavior()
+
 
 def combine_mult_and_diffref(mult, orig_inp, bg_data):
     to_return = []
@@ -82,3 +98,65 @@ def get_weightedsum_meannormed_logits(model):
                                                   axis=1)
     
     return weightedsum_meannormed_logits
+
+
+def fetch_shap(model, variants_table, input_len, genome_fasta, batch_size, debug_mode=False, lite=False, bias=None, shuf=False):
+    rsids = []
+    allele1_counts_shap = []
+    allele2_counts_shap = []
+
+    # variant sequence generator
+    var_gen = SNPGenerator(variants_table=variants_table,
+                           input_len=input_len,
+                           genome_fasta=genome_fasta,
+                           batch_size=batch_size,
+                           debug_mode=debug_mode,
+                           shuf=shuf)
+
+    for i in tqdm(range(len(var_gen))):
+
+        batch_rsids, allele1_seqs, allele2_seqs = var_gen[i]
+
+        if lite:
+            counts_model_input = [model.input[0], model.input[2]]
+            allele1_input = [allele1_seqs, np.zeros((allele1_seqs.shape[0], 1))]
+            allele2_input = [allele2_seqs, np.zeros((allele2_seqs.shape[0], 1))]
+
+            profile_model_counts_explainer = shap.explainers.deep.TFDeepExplainer(
+                (counts_model_input, tf.reduce_sum(model.outputs[1], axis=-1)),
+                shuffle_several_times,
+                combine_mult_and_diffref=combine_mult_and_diffref)
+
+            allele1_counts_shap_batch = profile_model_counts_explainer.shap_values(
+                allele1_input, progress_message=10)
+            allele2_counts_shap_batch = profile_model_counts_explainer.shap_values(
+                allele2_input, progress_message=10)
+
+            allele1_counts_shap_batch = allele1_counts_shap_batch[0] * allele1_input[0]
+            allele2_counts_shap_batch = allele2_counts_shap_batch[0] * allele2_input[0]
+
+        else:
+            counts_model_input = model.input
+            allele1_input = allele1_seqs
+            allele2_input = allele2_seqs
+
+            profile_model_counts_explainer = shap.explainers.deep.TFDeepExplainer(
+                (counts_model_input, tf.reduce_sum(model.outputs[1], axis=-1)),
+                shuffle_several_times,
+                combine_mult_and_diffref=combine_mult_and_diffref)
+
+            allele1_counts_shap_batch = profile_model_counts_explainer.shap_values(
+                allele1_input, progress_message=10)
+            allele2_counts_shap_batch = profile_model_counts_explainer.shap_values(
+                allele2_input, progress_message=10)
+
+            allele1_counts_shap_batch = allele1_counts_shap_batch * allele1_input
+            allele2_counts_shap_batch = allele2_counts_shap_batch * allele2_input
+
+        allele1_counts_shap.extend(allele1_counts_shap_batch)
+        allele2_counts_shap.extend(allele2_counts_shap_batch)
+
+        rsids.extend(batch_rsids)
+
+    return np.array(rsids), np.array(allele1_counts_shap), np.array(allele2_counts_shap)
+
