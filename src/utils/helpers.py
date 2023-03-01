@@ -382,3 +382,23 @@ def create_shuffle_table(variants_table,random_seed=None,total_shuf=None, num_sh
             ## empty dataframe
             shuf_variants_table = pd.DataFrame()
     return shuf_variants_table
+
+def get_pvals(obs, bg):
+    sorted_obs = np.sort(obs)[::-1]
+    sorted_obs_indices = np.argsort(obs)[::-1]
+    sorted_obs_indices = sorted_obs_indices.argsort()
+    sorted_bg = np.sort(bg)[::-1]
+
+    bg_pointer = 0
+    bg_len = len(sorted_bg)
+    sorted_pvals = []
+
+    for val in sorted_obs:
+        while val <= sorted_bg[bg_pointer] and bg_pointer != bg_len - 1:
+            bg_pointer += 1
+        sorted_pvals.append((bg_pointer + 1) / (bg_len + 1))
+
+    pvals = sorted_pvals[sorted_obs_indices]
+
+    return pvals
+
