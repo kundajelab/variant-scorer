@@ -55,7 +55,10 @@ def main():
     print("input length inferred from the model: ", input_len)
 
     print(variants_table.shape)
-    variants_table = variants_table.loc[variants_table.apply(lambda x: get_valid_variants(x.chr, x.pos, input_len, chrom_sizes_dict), axis=1)]
+    print(input_len)
+    print(chrom_sizes_dict)
+
+    variants_table = variants_table.loc[variants_table.apply(lambda x: get_valid_variants(x.chr, x.pos, x.allele1, x.allele2, input_len, chrom_sizes_dict), axis=1)]
     variants_table.reset_index(drop=True, inplace=True)
     print(variants_table.shape)
 

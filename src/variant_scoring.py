@@ -71,7 +71,7 @@ def main():
                                                         replace=True)
     else:
         total_shuf = len(variants_table) * args.num_shuf
-        shuf_variants_table = variants_table.sample(args.total_shuf,
+        shuf_variants_table = variants_table.sample(total_shuf,
                                                     random_state=args.random_seed,
                                                     ignore_index=True,
                                                     replace=True)
