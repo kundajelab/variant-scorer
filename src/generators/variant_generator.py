@@ -37,7 +37,6 @@ class VariantGenerator(Sequence):
         ### 1 - indexed position 
         pos = pos - 1
         
-        assert self.genome[chrom][pos:pos+len(allele1)] == allele1
         if len(allele1) == 1 and len(allele2) == 1:
             flank  = str(self.genome[chrom][pos-self.flank_size:pos+self.flank_size])
             if self.shuf:
@@ -48,6 +47,9 @@ class VariantGenerator(Sequence):
 
         ### handle INDELS (allele1 must be the reference allele)
         else:
+            ### hg19 has lower case
+            assert len(allele1) != len(allele2)
+            assert self.genome[chrom][pos:pos+len(allele1)].seq.upper() == allele1
             mismatch_length = len(allele1) - len(allele2)
             if mismatch_length > 0:
                 flank = str(self.genome[chrom][pos-self.flank_size:pos+self.flank_size+mismatch_length])
