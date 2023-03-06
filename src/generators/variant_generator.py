@@ -37,7 +37,7 @@ class VariantGenerator(Sequence):
         ### 1 - indexed position 
         pos = pos - 1
         
-        if len(allele1) == 1 and len(allele2) == 1:
+        if len(allele1) == len(allele2):
             flank  = str(self.genome[chrom][pos-self.flank_size:pos+self.flank_size])
             if self.shuf:
                 assert seed != -1
