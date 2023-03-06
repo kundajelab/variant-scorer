@@ -42,8 +42,8 @@ class VariantGenerator(Sequence):
             if self.shuf:
                 assert seed != -1
                 flank = dinuc_shuffle(flank, rng=np.random.RandomState(seed))
-            allele1_seq = flank[:self.flank_size] + allele1 + flank[self.flank_size+1:]
-            allele2_seq = flank[:self.flank_size] + allele2 + flank[self.flank_size+1:]
+            allele1_seq = flank[:self.flank_size] + allele1 + flank[self.flank_size+len(allele1):]
+            allele2_seq = flank[:self.flank_size] + allele2 + flank[self.flank_size+len(allele2):]
 
         ### handle INDELS (allele1 must be the reference allele)
         else:
