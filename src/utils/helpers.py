@@ -20,7 +20,7 @@ from utils import argmanager, losses
 def get_variant_schema(schema):
     var_SCHEMA = {'original': ["chr", "pos", "rsid", "allele1", "allele2"],
                   'plink': ["chr", "rsid", "ignore1", "pos", "allele1", "allele2"],
-                  'bed': ['chr', 'start', 'pos', 'allele1', 'allele2', 'rsid'],
+                  'bed': ['chr', 'pos', 'end', 'allele1', 'allele2', 'rsid'],
                   'chrombpnet': ["chr", "pos", "allele1", "allele2", "rsid"]}
     return var_SCHEMA[schema]
 
@@ -301,7 +301,7 @@ def adjust_indel_jsd(variants_table,allele1_pred_profiles,allele2_pred_profiles,
             allele1 = ""
         if allele2 == "-":
             allele2 = ""
-        if len(allele1) != 1 or len(allele2) != 1:
+        if len(allele1) != len(allele2):
             indel_idx += [i]
             
     adjusted_jsd = []
@@ -355,6 +355,8 @@ def load_variant_table(table_path, schema):
     has_chr_prefix = any('chr' in x.lower() for x in variants_table['chr'].tolist())
     if not has_chr_prefix:
         variants_table['chr'] = 'chr' + variants_table['chr']
+    if schema == "bed":
+        variants_table['pos'] = variants_table['pos'] + 1
     return variants_table
 
 def create_shuffle_table(variants_table,random_seed=None,total_shuf=None, num_shuf=None):
