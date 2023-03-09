@@ -228,7 +228,7 @@ def get_variant_scores_with_peaks(allele1_pred_counts, allele2_pred_counts,
 
 def get_variant_scores(allele1_pred_counts, allele2_pred_counts,
                        allele1_pred_profiles, allele2_pred_profiles):
-    logfc = np.log2(allele2_pred_counts / allele1_pred_counts)
+    logfc = np.squeeze(np.log2(allele2_pred_counts / allele1_pred_counts))
     jsd = np.array([jensenshannon(x,y) for x,y in zip(allele2_pred_profiles, allele1_pred_profiles)])
 
     return logfc, jsd
@@ -326,7 +326,8 @@ def create_shuffle_table(variants_table,random_seed=None,total_shuf=None, num_sh
 def get_pvals(obs, bg):
     sorted_obs = np.sort(obs)[::-1]
     sorted_obs_indices = np.argsort(obs)[::-1]
-    sorted_obs_indices = sorted_obs_indices.argsort()
+    sorted_obs_indices = np.argsort(sorted_obs_indices)
+    sorted_obs_indices_list = sorted_obs_indices.astype(int).tolist()
     sorted_bg = np.sort(bg)[::-1]
 
     bg_pointer = 0
@@ -338,7 +339,8 @@ def get_pvals(obs, bg):
             bg_pointer += 1
         sorted_pvals.append((bg_pointer + 1) / (bg_len + 1))
 
-    pvals = sorted_pvals[sorted_obs_indices]
+    sorted_pvals = np.array(sorted_pvals)
+    pvals = sorted_pvals[sorted_obs_indices_list]
 
     return pvals
 

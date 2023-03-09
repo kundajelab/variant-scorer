@@ -130,8 +130,8 @@ def main():
             
             shuf_max_percentile = np.maximum(shuf_allele1_percentile, shuf_allele2_percentile)
             shuf_percentile_change = shuf_allele2_percentile - shuf_allele1_percentile
-            shuf_abs_percentile_change = np.squeeze(np.abs(shuf_percentile_change))
-            shuf_abs_logfc = np.squeeze(np.abs(shuf_logfc))
+            shuf_abs_percentile_change = np.abs(shuf_percentile_change)
+            shuf_abs_logfc = np.abs(shuf_logfc)
             shuf_abs_logfc_jsd = shuf_abs_logfc * shuf_jsd
             shuf_abs_logfc_jsd_max_percentile = shuf_abs_logfc_jsd * shuf_max_percentile
 
