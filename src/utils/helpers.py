@@ -259,6 +259,7 @@ def adjust_indel_jsd(variants_table,allele1_pred_profiles,allele2_pred_profiles,
         allele1_p = allele1_pred_profiles[i]
         allele2_p = allele2_pred_profiles[i]
         assert len(allele1_p) == len(allele2_p)
+        assert allele1_length != allele2_length
         flank_size = len(allele1_p)//2
         allele1_left_flank = allele1_p[:flank_size]
         allele2_left_flank = allele2_p[:flank_size]
