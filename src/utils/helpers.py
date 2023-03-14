@@ -228,70 +228,10 @@ def get_variant_scores_with_peaks(allele1_pred_counts, allele2_pred_counts,
 
 def get_variant_scores(allele1_pred_counts, allele2_pred_counts,
                        allele1_pred_profiles, allele2_pred_profiles):
-    logfc = np.log2(allele2_pred_counts / allele1_pred_counts)
+    logfc = np.squeeze(np.log2(allele2_pred_counts / allele1_pred_counts))
     jsd = np.array([jensenshannon(x,y) for x,y in zip(allele2_pred_profiles, allele1_pred_profiles)])
 
     return logfc, jsd
-
-def fetch_shap(model, variants_table, input_len, genome_fasta, batch_size, debug_mode=False, lite=False, bias=None, shuf=False):
-    rsids = []
-    allele1_counts_shap = []
-    allele2_counts_shap = []
-
-    # variant sequence generator
-    var_gen = VariantGenerator(variants_table=variants_table,
-                           input_len=input_len,
-                           genome_fasta=genome_fasta,
-                           batch_size=batch_size,
-                           debug_mode=False,
-                           shuf=shuf)
-
-    for i in tqdm(range(len(var_gen))):
-
-        batch_rsids, allele1_seqs, allele2_seqs = var_gen[i]
-
-        if lite:
-            counts_model_input = [model.input[0], model.input[2]]
-            allele1_input = [allele1_seqs, np.zeros((allele1_seqs.shape[0], 1))]
-            allele2_input = [allele2_seqs, np.zeros((allele2_seqs.shape[0], 1))]
-
-            profile_model_counts_explainer = shap.explainers.deep.TFDeepExplainer(
-                (counts_model_input, tf.reduce_sum(model.outputs[1], axis=-1)),
-                shuffle_several_times,
-                combine_mult_and_diffref=combine_mult_and_diffref)
-
-            allele1_counts_shap_batch = profile_model_counts_explainer.shap_values(
-                allele1_input, progress_message=10)
-            allele2_counts_shap_batch = profile_model_counts_explainer.shap_values(
-                allele2_input, progress_message=10)
-
-            allele1_counts_shap_batch = allele1_counts_shap_batch[0] * allele1_input[0]
-            allele2_counts_shap_batch = allele2_counts_shap_batch[0] * allele2_input[0]
-
-        else:
-            counts_model_input = model.input
-            allele1_input = allele1_seqs
-            allele2_input = allele2_seqs
-
-            profile_model_counts_explainer = shap.explainers.deep.TFDeepExplainer(
-                (counts_model_input, tf.reduce_sum(model.outputs[1], axis=-1)),
-                shuffle_several_times,
-                combine_mult_and_diffref=combine_mult_and_diffref)
-
-            allele1_counts_shap_batch = profile_model_counts_explainer.shap_values(
-                allele1_input, progress_message=10)
-            allele2_counts_shap_batch = profile_model_counts_explainer.shap_values(
-                allele2_input, progress_message=10)
-
-            allele1_counts_shap_batch = allele1_counts_shap_batch * allele1_input
-            allele2_counts_shap_batch = allele2_counts_shap_batch * allele2_input
-
-        allele1_counts_shap.extend(allele1_counts_shap_batch)
-        allele2_counts_shap.extend(allele2_counts_shap_batch)
-
-        rsids.extend(batch_rsids)
-
-    return np.array(rsids), np.array(allele1_counts_shap), np.array(allele2_counts_shap)
 
 def adjust_indel_jsd(variants_table,allele1_pred_profiles,allele2_pred_profiles,original_jsd):
     indel_idx = []
@@ -382,3 +322,25 @@ def create_shuffle_table(variants_table,random_seed=None,total_shuf=None, num_sh
             ## empty dataframe
             shuf_variants_table = pd.DataFrame()
     return shuf_variants_table
+
+def get_pvals(obs, bg):
+    sorted_obs = np.sort(obs)[::-1]
+    sorted_obs_indices = np.argsort(obs)[::-1]
+    sorted_obs_indices = np.argsort(sorted_obs_indices)
+    sorted_obs_indices_list = sorted_obs_indices.astype(int).tolist()
+    sorted_bg = np.sort(bg)[::-1]
+
+    bg_pointer = 0
+    bg_len = len(sorted_bg)
+    sorted_pvals = []
+
+    for val in sorted_obs:
+        while val <= sorted_bg[bg_pointer] and bg_pointer != bg_len - 1:
+            bg_pointer += 1
+        sorted_pvals.append((bg_pointer + 1) / (bg_len + 1))
+
+    sorted_pvals = np.array(sorted_pvals)
+    pvals = sorted_pvals[sorted_obs_indices_list]
+
+    return pvals
+
