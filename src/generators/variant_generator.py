@@ -36,13 +36,14 @@ class VariantGenerator(Sequence):
             allele2 = ""
         ### 1 - indexed position 
         pos = pos - 1
-        if len(allele1) == 1 and len(allele2) == 1:
+        
+        if len(allele1) == len(allele2):
             flank  = str(self.genome[chrom][pos-self.flank_size:pos+self.flank_size])
             if self.shuf:
                 assert seed != -1
                 flank = dinuc_shuffle(flank, rng=np.random.RandomState(seed))
-            allele1_seq = flank[:self.flank_size] + allele1 + flank[self.flank_size+1:]
-            allele2_seq = flank[:self.flank_size] + allele2 + flank[self.flank_size+1:]
+            allele1_seq = flank[:self.flank_size] + allele1 + flank[self.flank_size+len(allele1):]
+            allele2_seq = flank[:self.flank_size] + allele2 + flank[self.flank_size+len(allele2):]
 
         ### handle INDELS (allele1 must be the reference allele)
         else:
