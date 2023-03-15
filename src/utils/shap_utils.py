@@ -15,7 +15,7 @@ import math
 from tqdm import tqdm
 import sys
 sys.path.append('..')
-from generators.variant_generator import SNPGenerator
+from generators.variant_generator import VariantGenerator
 from generators.peak_generator import PeakGenerator
 from utils import argmanager, losses
 import shap
@@ -106,11 +106,11 @@ def fetch_shap(model, variants_table, input_len, genome_fasta, batch_size, debug
     allele2_counts_shap = []
 
     # variant sequence generator
-    var_gen = SNPGenerator(variants_table=variants_table,
+    var_gen = VariantGenerator(variants_table=variants_table,
                            input_len=input_len,
                            genome_fasta=genome_fasta,
                            batch_size=batch_size,
-                           debug_mode=debug_mode,
+                           debug_mode=False,
                            shuf=shuf)
 
     for i in tqdm(range(len(var_gen))):
