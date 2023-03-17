@@ -100,11 +100,12 @@ def get_weightedsum_meannormed_logits(model):
     return weightedsum_meannormed_logits
 
 
-def fetch_shap(model, variants_table, input_len, genome_fasta, batch_size, debug_mode=False, lite=False, bias=None, shuf=False):
+def fetch_shap(model, variants_table, input_len, genome_fasta, batch_size, debug_mode=False, lite=False, bias=None, shuf=False,shap_type="counts"):
     rsids = []
     allele1_counts_shap = []
     allele2_counts_shap = []
-
+    allele1_profile_shap = []
+    allele2_profile_shap = []
     # variant sequence generator
     var_gen = VariantGenerator(variants_table=variants_table,
                            input_len=input_len,
@@ -135,28 +136,51 @@ def fetch_shap(model, variants_table, input_len, genome_fasta, batch_size, debug
             allele1_counts_shap_batch = allele1_counts_shap_batch[0] * allele1_input[0]
             allele2_counts_shap_batch = allele2_counts_shap_batch[0] * allele2_input[0]
 
-        else:
-            counts_model_input = model.input
+        else:            
             allele1_input = allele1_seqs
             allele2_input = allele2_seqs
 
-            profile_model_counts_explainer = shap.explainers.deep.TFDeepExplainer(
-                (counts_model_input, tf.reduce_sum(model.outputs[1], axis=-1)),
-                shuffle_several_times,
-                combine_mult_and_diffref=combine_mult_and_diffref)
+            if shap_type == "counts":
+                counts_model_input = model.input
+                profile_model_counts_explainer = shap.explainers.deep.TFDeepExplainer(
+                    (counts_model_input, tf.reduce_sum(model.outputs[1], axis=-1)),
+                    shuffle_several_times,
+                    combine_mult_and_diffref=combine_mult_and_diffref)
 
-            allele1_counts_shap_batch = profile_model_counts_explainer.shap_values(
-                allele1_input, progress_message=10)
-            allele2_counts_shap_batch = profile_model_counts_explainer.shap_values(
-                allele2_input, progress_message=10)
+                allele1_counts_shap_batch = profile_model_counts_explainer.shap_values(
+                    allele1_input, progress_message=10)
+                allele2_counts_shap_batch = profile_model_counts_explainer.shap_values(
+                    allele2_input, progress_message=10)
 
-            allele1_counts_shap_batch = allele1_counts_shap_batch * allele1_input
-            allele2_counts_shap_batch = allele2_counts_shap_batch * allele2_input
+                allele1_counts_shap_batch = allele1_counts_shap_batch * allele1_input
+                allele2_counts_shap_batch = allele2_counts_shap_batch * allele2_input
 
-        allele1_counts_shap.extend(allele1_counts_shap_batch)
-        allele2_counts_shap.extend(allele2_counts_shap_batch)
+                allele1_counts_shap.extend(allele1_counts_shap_batch)
+                allele2_counts_shap.extend(allele2_counts_shap_batch)
+
+            else:
+                assert shap_type == "profile"
+                profile_model_input = model.input
+                weightedsum_meannormed_logits = get_weightedsum_meannormed_logits(model)
+                profile_model_profile_explainer = shap.explainers.deep.TFDeepExplainer(
+                    (profile_model_input, weightedsum_meannormed_logits),
+                    shuffle_several_times,
+                    combine_mult_and_diffref=combine_mult_and_diffref)
+                
+                allele1_profile_shap_batch = profile_model_profile_explainer.shap_values(
+                    allele1_input, progress_message=10)
+                allele2_profile_shap_batch = profile_model_profile_explainer.shap_values(
+                    allele2_input, progress_message=10) 
+
+                allele1_profile_shap_batch = allele1_profile_shap_batch * allele1_input
+                allele2_profile_shap_batch = allele2_profile_shap_batch * allele2_input
+
+                allele1_profile_shap.extend(allele1_profile_shap_batch)
+                allele2_profile_shap.extend(allele2_profile_shap_batch)
 
         rsids.extend(batch_rsids)
 
-    return np.array(rsids), np.array(allele1_counts_shap), np.array(allele2_counts_shap)
-
+    if shap_type == "counts":
+        return np.array(rsids), np.array(allele1_counts_shap), np.array(allele2_counts_shap)
+    else:
+        return np.array(rsids), np.array(allele1_profile_shap), np.array(allele2_profile_shap)

@@ -22,6 +22,7 @@ def update_scoring_args(parser):
     parser.add_argument("--no_hdf5", action='store_true', help="Do not save detailed predictions in hdf5 file")
     parser.add_argument("-nc", "--num_chunks", type=int, default=10, help="Number of chunks to divide SNP file into")
     parser.add_argument("-fo", "--forward_only", action='store_true', help="Run variant scoring only on forward sequence")
+    parser.add_argument("-st", "--shap_type",  nargs='+', default=["counts"])
 
 def fetch_scoring_args():
     parser = argparse.ArgumentParser()

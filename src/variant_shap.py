@@ -29,15 +29,6 @@ def main():
     if not os.path.exists(out_dir):
         raise OSError("Output directory does not exist")
 
-    # load the model
-    # # load the variants
-    # variants_table = pd.read_csv(args.list, header=None, sep='\t', names=get_snp_schema(args.schema))
-    # variants_table.drop(columns=[x for x in variants_table.columns if x.startswith('ignore')], inplace=True)
-    # variants_table['chr'] = variants_table['chr'].astype(str)
-    # has_chr_prefix = any('chr' in x for x in variants_table['chr'].tolist())
-    # if not has_chr_prefix:
-    #     variants_table['chr'] = 'chr' + variants_table['chr']
-
     model = load_model_wrapper(args.model)
     variants_table=load_variant_table(args.list, args.schema)
     variants_table = variants_table.fillna('-')
@@ -61,22 +52,25 @@ def main():
     variants_table.reset_index(drop=True, inplace=True)
     print(variants_table.shape)
 
-    # fetch model prediction for variants
-    rsids, allele1_counts_shap, allele2_counts_shap = fetch_shap(model,
-                                                                 variants_table,
-                                                                 input_len,
-                                                                 args.genome,
-                                                                 args.batch_size,
-                                                                 debug_mode=args.debug_mode,
-                                                                 lite=args.lite,
-                                                                 bias=None,
-                                                                 shuf=False)
+    
+    for shap_type in args.shap_type:
+        # fetch model prediction for variants
+        rsids, allele1_counts_shap, allele2_counts_shap = fetch_shap(model,
+                                                                    variants_table,
+                                                                    input_len,
+                                                                    args.genome,
+                                                                    args.batch_size,
+                                                                    debug_mode=args.debug_mode,
+                                                                    lite=args.lite,
+                                                                    bias=None,
+                                                                    shuf=False,
+                                                                    shap_type=shap_type)
 
-    # store shap at variants
-    with h5py.File('.'.join([args.out_prefix, "variant_shap.h5"]), 'w') as f:
-        observed = f.create_group('observed')
-        observed.create_dataset('allele1_counts_shap', data=allele1_counts_shap, compression='gzip', compression_opts=9)
-        observed.create_dataset('allele2_counts_shap', data=allele2_counts_shap, compression='gzip', compression_opts=9)
+        # store shap at variants
+        with h5py.File('/'.join([args.out_prefix, "%s_variant_shap.h5"%shap_type]), 'w') as f:
+            observed = f.create_group('observed')
+            observed.create_dataset('allele1_shap', data=allele1_counts_shap, compression='gzip', compression_opts=9)
+            observed.create_dataset('allele2_shap', data=allele2_counts_shap, compression='gzip', compression_opts=9)
 
     print("DONE")
 
