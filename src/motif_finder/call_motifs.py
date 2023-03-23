@@ -150,7 +150,7 @@ def locate_motif(shap_heights, threshold, count_to_exit):
 					right_start -= (count_to_exit + 1)
 	return min(left_start - len(shap_heights) // 2, 0),  max(right_start - len(shap_heights) // 2, 0)
 	
-def find_motif_loc(shap_scores, center_length=50, quantile=0.95, count_to_exit=2):
+def find_motif_loc(shap_scores, center_length=30, quantile=0.95, count_to_exit=2):
 	'''
 	Finds the motif location in a set of SHAP scores
 	Inputs are 
