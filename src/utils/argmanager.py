@@ -22,6 +22,7 @@ def update_scoring_args(parser):
     parser.add_argument("--no_hdf5", action='store_true', help="Do not save detailed predictions in hdf5 file")
     parser.add_argument("-nc", "--num_chunks", type=int, default=10, help="Number of chunks to divide SNP file into")
     parser.add_argument("-fo", "--forward_only", action='store_true', help="Run variant scoring only on forward sequence")
+    parser.add_argument("-st", "--shap_type",  nargs='+', default=["counts"])
 
 def fetch_scoring_args():
     parser = argparse.ArgumentParser()
@@ -29,4 +30,19 @@ def fetch_scoring_args():
     args = parser.parse_args()
     print(args)
     return args
+    
 
+def update_variant_summary_args(parser):
+    parser.add_argument("-s", "--score_path", type=str, required=True, help="Path to variant scores that will be used to generate summary")
+    parser.add_argument("-o", "--out_prefix", type=str, required=True, help="Path to storing the summary file average across folds, directory should already exist")
+    parser.add_argument("-p", "--peaks", type=str, required=True, help="Bed file containing peak regions")
+    parser.add_argument("-g", "--genes", type=str, required=True, help="Bed file containing gene regions")
+    parser.add_argument("-sc", "--schema", type=str, required=True, choices=['bed', 'plink', 'neuro-variants', 'chrombpnet', 'original'], default='chrombpnet', help="Format for the input variants list")
+    parser.add_argument("-sl", "--score_list",  nargs='+', required=True)
+
+def fetch_variant_summary_args():
+    parser = argparse.ArgumentParser()
+    update_variant_summary_args(parser)
+    args = parser.parse_args()
+    print(args)
+    return args
