@@ -3,7 +3,7 @@ The variant scoring repository provides a set of scripts for scoring genetic var
 
 **variant_scoring.py** - This script takes a list of variants in various input formats and generates scores for the variants using a ChromBPNet model. The output is a TSV file containing the scores for each variant. 
 
-## Usage:
+### Usage:
 
 python variant_scoring.py -l [VARIANTS_FILE] -g [GENOME_FASTA] -m [MODEL_PATH] -o [OUT_PREFIX] -s [CHROM_SIZES] [OTHER_ARGS]
 
