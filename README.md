@@ -19,10 +19,6 @@ Input arguments:
 
 -ps or --peak_chrom_sizes: the path to a TSV file with chromosome sizes for the peak genome.
 
--b or --bias: the bias model to use for variant scoring.
-
--li or --lite: use ChromBPNet-lite model.
-
 -dm or --debug_mode: display allele input sequences.
 
 -bs or --batch_size: the batch size to use for the model. Default is 512.
@@ -35,15 +31,11 @@ Input arguments:
 
 -t or --total_shuf: the total number of shuffled scores across all SNPs. Overrides --num_shuf.
 
--mp or --max_peaks: the maximum number of peaks to use for peak percentile calculation.
-
 -c or --chrom: only score SNPs in the selected chromosome.
 
 -r or --random_seed: the random seed for reproducibility when sampling. Default is 1234.
 
 --no_hdf5: do not save detailed predictions in hdf5 file.
-
--nc or --num_chunks: the number of chunks to divide SNP file into. Default is 10.
 
 -fo or --forward_only: run variant scoring only on forward sequence.
 
