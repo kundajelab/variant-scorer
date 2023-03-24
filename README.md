@@ -22,7 +22,7 @@ Input arguments:
 
 -ps or --peak_chrom_sizes: the path to a TSV file with chromosome sizes for the peak genome.
 
--dm or --debug_mode: display allele input sequences.
+-dm or --debug_mode: subsample 10000 variants for debug
 
 -bs or --batch_size: the batch size to use for the model. Default is 512.
 
