@@ -38,7 +38,7 @@ def fetch_tomtom_matches(ppm, cwm, background=[0.25, 0.25, 0.25, 0.25], tomtom_e
 			dictionary with keys 'Target ID', 'p-value', 'E-value', 'q-value'
 	"""
 
-	_, fname = tempfile.mkstemp()
+	fd, fname = tempfile.mkstemp()
 
 	score = np.sum(np.abs(cwm), axis=1)
 	trim_thresh = np.max(score) * 0.25  # Cut off anything less than 30% of max score
@@ -79,7 +79,8 @@ def fetch_tomtom_matches(ppm, cwm, background=[0.25, 0.25, 0.25, 0.25], tomtom_e
 		mtf['E-value'] = float(t[eval_idx])
 		mtf['q-value'] = float(t[qval_idx])
 		r.append(mtf)
-
+        
+	os.close(fd)
 	os.system('rm ' + fname)
 	return r
 
