@@ -67,7 +67,7 @@ def main():
                                                                     shap_type=shap_type)
 
         # store shap at variants
-        with h5py.File('/'.join([args.out_prefix, "%s_variant_shap.h5"%shap_type]), 'w') as f:
+        with h5py.File(''.join([args.out_prefix, ".variant_shap.%s.h5"%shap_type]), 'w') as f:
             observed = f.create_group('observed')
             observed.create_dataset('allele1_shap', data=allele1_counts_shap, compression='gzip', compression_opts=9)
             observed.create_dataset('allele2_shap', data=allele2_counts_shap, compression='gzip', compression_opts=9)
