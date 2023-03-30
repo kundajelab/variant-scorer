@@ -4,17 +4,17 @@ import argparse
 import numpy as np
 import pandas as pd
 
-def trim_ppm(ppm, t=0.45, min_length=3, flank=0):
-    # trim matrix to first and last bp that have
-    # p>=threshold 
-    maxes = np.max(ppm,-1)
-    maxes = np.where(maxes>=t)
+# def trim_ppm(ppm, t=0.45, min_length=3, flank=0):
+#     # trim matrix to first and last bp that have
+#     # p>=threshold 
+#     maxes = np.max(ppm,-1)
+#     maxes = np.where(maxes>=t)
 
-    # if no bases with prob>t or too small:
-    if (len(maxes[0])==0) or (maxes[0][-1]+1-maxes[0][0]<min_length):
-        return None
+#     # if no bases with prob>t or too small:
+#     if (len(maxes[0])==0) or (maxes[0][-1]+1-maxes[0][0]<min_length):
+#         return None
     
-    return ppm[max(maxes[0][0]-flank, 0):maxes[0][-1]+1+flank]
+#     return ppm[max(maxes[0][0]-flank, 0):maxes[0][-1]+1+flank]
 
 def write_prelim_lines(out_file):
     out_file.write("MEME version 4\n")
@@ -35,43 +35,57 @@ def write_for_one_motif(pfm, motif, out_file):
     out_file.write("URL none\n")
     out_file.write("\n")
 
+def trim_motif(ppm, cwm, background=[0.25, 0.25, 0.25, 0.25],trim_threshold=0.3):
+    score = np.sum(np.abs(cwm), axis=1)
+    trim_thresh = np.max(score) * trim_threshold  # Cut off anything less than 30% of max score
+    pass_inds = np.where(score >= trim_thresh)[0]
+    trimmed = ppm[np.min(pass_inds): np.max(pass_inds) + 1]
 
+    # can be None of no base has prob>t
+    if trimmed is None:
+        return []
+    return 
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-m", "--modisco_h5py", required=True, type=str)
     parser.add_argument("-mt", "--modisco_tomtom", required=True, type=str)
-    parser.add_argument("-o", "--output_file", required=True, type=str)
-    parser.add_argument("-t", "--threshold", default=0.45, type=float)
+    parser.add_argument("-o", "--output_prefix", required=True, type=str)
+    parser.add_argument("-t", "--threshold", default=0.3, type=float)
     parser.add_argument("-ml", "--min_length", default=3, type=int, help="Min length of acceptable motif")
     parser.add_argument("-f", "--flank_add", default=0, type=int, help="Add this on either side of motif after trimming")
-    parser.add_argument("-s", "--min_seqlets", default=100, type=int, help="Minimum seqlets associated with motif")
-    parser.add_argument("-n", "--normalize", default=False, action='store_true', help="PPM (probability) instead of PFM (frequency)" )
+    parser.add_argument("-s", "--min_seqlets", default=20, type=int, help="Minimum seqlets associated with motif")
+    parser.add_argument("-n", "--normalize", default=True, action='store_true', help="PPM (probability) instead of PFM (frequency)" )
     args = parser.parse_args()
     
     tomtom_results = pd.read_csv(args.modisco_tomtom, sep="\t")
-    tomtom_results["best_matches"] = tomtom_results["Match_1"] + "_" + tomtom_results.index.astype(str)
-    f = h5py.File(args.modisco_h5py, 'r')
-    output_file = open(args.output_file, "a")
-    write_prelim_lines(output_file)
-    num_patterns = len(f['metacluster_idx_to_submetacluster_results']['metacluster_0']['seqlets_to_patterns_result']['patterns'])-1
+    tomtom_results.set_index('pattern', inplace=True)
+    tomtom_results["best_matches"] = tomtom_results["match0"] + "--" + tomtom_results.index.astype(str)
+    modisco_results = h5py.File(args.modisco_h5py, 'r')
     
-    for i in range(num_patterns):
-        trimmed_ppm = trim_ppm(f['metacluster_idx_to_submetacluster_results']['metacluster_0']['seqlets_to_patterns_result']['patterns']['pattern_{}'.format(i)]['sequence']['fwd'], 
-                t=args.threshold, min_length=args.min_length, flank=args.flank_add)
+    for name in ['pos_patterns', 'neg_patterns']:
+        if name not in modisco_results.keys():
+            continue
 
-        if trimmed_ppm is not None:
-            num_seqlets = len(f['metacluster_idx_to_submetacluster_results']['metacluster_0']['seqlets_to_patterns_result']['patterns']['pattern_{}'.format(i)]['seqlets_and_alnmts']['seqlets'])
-
-            if num_seqlets >= args.min_seqlets:
-                pfm = (trimmed_ppm*num_seqlets).astype(int)
+        if name == 'pos_patterns':
+            output_file = open(args.output_prefix + '.pos.meme.txt', "w")
+        else:
+            output_file = open(args.output_prefix + '.neg.meme.txt', "w")
             
-                if args.normalize:
-                    pfm = (pfm+1)/np.sum(pfm, axis=1, keepdims=True)
-                    pfm = np.where(pfm > 1, 1, pfm)
-                curr_motif = tomtom_results.loc[i, "best_matches"]
-                curr_motif = "NoMatch" if (type(curr_motif) == float and np.isnan(curr_motif)) else curr_motif
-                write_for_one_motif(pfm, curr_motif, output_file)
-    
-    f.close()
+        write_prelim_lines(output_file)
+        metacluster = modisco_results[name]
+        key = lambda x: int(x[0].split("_")[-1])
+        for pattern_name, pattern in sorted(metacluster.items(), key=key):
+            ppm = np.array(pattern['sequence'][:])
+            cwm = np.array(pattern["contrib_scores"][:])
+
+            trimmed = trim_motif(ppm, cwm,trim_threshold=args.threshold)
+            if len(trimmed) > args.min_length:
+                num_seqlets = pattern['seqlets']['n_seqlets'][0]
+                if num_seqlets >= args.min_seqlets: 
+                    curr_motif = tomtom_results.at["pos_patterns." + pattern_name, "best_matches"]
+                    curr_motif = "NoMatch" if (type(curr_motif) == float and np.isnan(curr_motif)) else curr_motif
+                    write_for_one_motif(trimmed, curr_motif, output_file)
+
+    modisco_results.close()
     
