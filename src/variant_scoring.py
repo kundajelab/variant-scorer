@@ -203,19 +203,16 @@ def main():
     variants_table["allele2_pred_counts"] = allele2_pred_counts
     variants_table["logfc"] = logfc
     variants_table["abs_logfc"] = abs(variants_table["logfc"])
-    variants_table["jsd"] = jsd
     if have_indel_variants:
-        variants_table["adjusted_jsd"] = adjusted_jsd_list
-        variants_table["abs_logfc_x_jsd"] = variants_table["abs_logfc"] * variants_table["adjusted_jsd"]
+        variants_table["jsd"] = adjusted_jsd_list
     else:
-        variants_table["abs_logfc_x_jsd"] = variants_table["abs_logfc"] * variants_table["jsd"]
+        variants_table["jsd"] = jsd
+    variants_table["original_jsd"] = jsd    
+    variants_table["abs_logfc_x_jsd"] = variants_table["abs_logfc"] * variants_table["jsd"]
 
     if len(shuf_variants_table) > 0:
         variants_table["abs_logfc_pval"] = get_pvals(variants_table["abs_logfc"].tolist(), shuf_abs_logfc)
-        if have_indel_variants:
-            variants_table["jsd_pval"] = get_pvals(variants_table["adjusted_jsd"].tolist(), shuf_jsd)
-        else:
-            variants_table["jsd_pval"] = get_pvals(variants_table["jsd"].tolist(), shuf_jsd)
+        variants_table["jsd_pval"] = get_pvals(variants_table["jsd"].tolist(), shuf_jsd)
         variants_table["abs_logfc_x_jsd_pval"] = get_pvals(variants_table["abs_logfc_x_jsd"].tolist(), shuf_abs_logfc_jsd)
     if args.peaks:
         variants_table["allele1_percentile"] = allele1_percentile
