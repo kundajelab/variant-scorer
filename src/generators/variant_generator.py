@@ -13,7 +13,9 @@ class VariantGenerator(Sequence):
                  genome_fasta,
                  batch_size=512,
                  debug_mode=False,
-                 shuf=False):
+                 shuf=False,
+                 upstream_flank=None,
+                 downstream_flank=None):
 
         self.variants_table = variants_table
         self.num_variants = self.variants_table.shape[0]
@@ -23,6 +25,8 @@ class VariantGenerator(Sequence):
         self.flank_size = self.input_len // 2
         self.shuf = shuf
         self.batch_size = batch_size
+        self.upstream_flank=upstream_flank
+        self.downstream_flank=downstream_flank
 
     def __get_allele_seq__(self, chrom, pos, allele1, allele2, seed=-1):
         chrom = str(chrom)
@@ -70,6 +74,11 @@ class VariantGenerator(Sequence):
 
         assert len(allele1_seq) == self.flank_size * 2
         assert len(allele2_seq) == self.flank_size * 2
+
+        if self.upstream_flank != None:
+            assert self.downstream_flank != None
+            allele1_seq = self.upstream_flank + allele1_seq + self.downstream_flank
+            allele2_seq = self.upstream_flank + allele2_seq + self.downstream_flank
         return allele1_seq, allele2_seq
 
     def __getitem__(self, idx):
