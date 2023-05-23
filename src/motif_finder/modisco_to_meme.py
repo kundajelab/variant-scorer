@@ -6,14 +6,14 @@ import pandas as pd
 
 # def trim_ppm(ppm, t=0.45, min_length=3, flank=0):
 #     # trim matrix to first and last bp that have
-#     # p>=threshold 
+#     # p>=threshold
 #     maxes = np.max(ppm,-1)
 #     maxes = np.where(maxes>=t)
 
 #     # if no bases with prob>t or too small:
 #     if (len(maxes[0])==0) or (maxes[0][-1]+1-maxes[0][0]<min_length):
 #         return None
-    
+
 #     return ppm[max(maxes[0][0]-flank, 0):maxes[0][-1]+1+flank]
 
 def write_prelim_lines(out_file):
@@ -43,8 +43,8 @@ def trim_motif(ppm, cwm, background=[0.25, 0.25, 0.25, 0.25],trim_threshold=0.3)
 
     # can be None of no base has prob>t
     if trimmed is None:
-        return []
-    return 
+        trimmed = []
+    return trimmed
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
@@ -57,12 +57,12 @@ if __name__=='__main__':
     parser.add_argument("-s", "--min_seqlets", default=20, type=int, help="Minimum seqlets associated with motif")
     parser.add_argument("-n", "--normalize", default=True, action='store_true', help="PPM (probability) instead of PFM (frequency)" )
     args = parser.parse_args()
-    
+
     tomtom_results = pd.read_csv(args.modisco_tomtom, sep="\t")
     tomtom_results.set_index('pattern', inplace=True)
     tomtom_results["best_matches"] = tomtom_results["match0"] + "--" + tomtom_results.index.astype(str)
     modisco_results = h5py.File(args.modisco_h5py, 'r')
-    
+
     for name in ['pos_patterns', 'neg_patterns']:
         if name not in modisco_results.keys():
             continue
@@ -71,7 +71,7 @@ if __name__=='__main__':
             output_file = open(args.output_prefix + '.pos.meme.txt', "w")
         else:
             output_file = open(args.output_prefix + '.neg.meme.txt', "w")
-            
+
         write_prelim_lines(output_file)
         metacluster = modisco_results[name]
         key = lambda x: int(x[0].split("_")[-1])
@@ -82,10 +82,10 @@ if __name__=='__main__':
             trimmed = trim_motif(ppm, cwm,trim_threshold=args.threshold)
             if len(trimmed) > args.min_length:
                 num_seqlets = pattern['seqlets']['n_seqlets'][0]
-                if num_seqlets >= args.min_seqlets: 
-                    curr_motif = tomtom_results.at["pos_patterns." + pattern_name, "best_matches"]
+                if num_seqlets >= args.min_seqlets:
+                    curr_motif = tomtom_results.at[name + "." + pattern_name, "best_matches"]
                     curr_motif = "NoMatch" if (type(curr_motif) == float and np.isnan(curr_motif)) else curr_motif
                     write_for_one_motif(trimmed, curr_motif, output_file)
 
     modisco_results.close()
-    
+
