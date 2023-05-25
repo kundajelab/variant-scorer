@@ -17,7 +17,7 @@ python variant_scoring.py -l [VARIANTS_FILE] -g [GENOME_FASTA] -m [MODEL_PATH] -
 
 -pg or --peak_genome: a genome fasta file for peaks.
 
--m or --model: (required) the ChromBPNet model to use for variant scoring.
+-m or --model: (required) the ChromBPNet model to use for variant scoring. For most use cases, this should be the bias-corrected model (chrombpnet_nobias.h5)
 
 -o or --out_prefix: (required) the path to store SNP effect score predictions from the script. The directory should already exist.
 
