@@ -70,7 +70,8 @@ def get_valid_variants(chrom, pos, allele1, allele2, input_len, chrom_sizes_dict
         # no_allele2_indel = (len(allele2) == 1)
         # no_indel = no_allele1_indel and no_allele2_indel
         # valid_variant = valid_chrom and in_bounds and no_indel
-        valid_variant = valid_chrom and in_bounds
+        no_long_indel = (len(allele1) < input_len//2) and (len(allele2) < input_len//2)
+        valid_variant = valid_chrom and in_bounds and no_long_indel
         return valid_variant
     else:
         return False
