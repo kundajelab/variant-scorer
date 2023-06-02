@@ -7,6 +7,13 @@ The variant scoring repository provides a set of scripts for scoring genetic var
 
 python variant_scoring.py -l [VARIANTS_FILE] -g [GENOME_FASTA] -m [MODEL_PATH] -o [OUT_PREFIX] -s [CHROM_SIZES] [OTHER_ARGS]
 
+### Supported Variant List Schemas:
+
+* chrombpnet : ['chr', 'pos', 'allele1', 'allele2', 'rsid']
+* bed : ['chr', 'pos', 'end', 'allele1', 'allele2', 'rsid']
+* plink : ['chr', 'rsid', 'ignore1', 'pos', 'allele1', 'allele2']
+* original : ['chr', 'pos', 'rsid', 'allele1', 'allele2']
+
 ````
 
 ## Input arguments:
@@ -29,7 +36,7 @@ python variant_scoring.py -l [VARIANTS_FILE] -g [GENOME_FASTA] -m [MODEL_PATH] -
 
 -bs or --batch_size: the batch size to use for the model. Default is 512.
 
--sc or --schema: the format for the input variants list. Choices are: 'bed', 'plink', 'neuro-variants', 'chrombpnet', 'original'. Default is 'chrombpnet'.
+-sc or --schema: the format for the input variants list. Choices are: 'bed', 'plink', 'chrombpnet', 'original'. Default is 'chrombpnet'.
 
 -p or --peaks: a bed file containing peak regions.
 
@@ -67,7 +74,7 @@ python variant_summary_across_folds.py -s [VARIANT_SCORE_PATH] -o [out_prefix] -
 
 -g or --genes: (required): A bed file with gene coordinates
 
--sc or --schema: the format for the input variants list. Choices are: 'bed', 'plink', 'neuro-variants', 'chrombpnet', 'original'. Default is 'chrombpnet'.
+-sc or --schema: the format for the input variants list. Choices are: 'bed', 'plink', 'chrombpnet', 'original'. Default is 'chrombpnet'.
 
 ````
 
