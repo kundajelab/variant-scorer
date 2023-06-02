@@ -12,7 +12,7 @@ def update_scoring_args(parser):
     parser.add_argument("-li", "--lite", action='store_true', help="Models were trained with chrombpnet-lite")
     parser.add_argument("-dm", "--debug_mode", action='store_true', help="Display allele input sequences")
     parser.add_argument("-bs", "--batch_size", type=int, default=512, help="Batch size to use for the model")
-    parser.add_argument("-sc", "--schema", type=str, choices=['bed', 'plink', 'neuro-variants', 'chrombpnet', 'original'], default='chrombpnet', help="Format for the input variants list")
+    parser.add_argument("-sc", "--schema", type=str, choices=['bed', 'plink', 'chrombpnet', 'original'], default='chrombpnet', help="Format for the input variants list")
     parser.add_argument("-p", "--peaks", type=str, help="Bed file containing peak regions")
     parser.add_argument("-n", "--num_shuf", type=int, default=10, help="Number of shuffled scores per SNP")
     parser.add_argument("-t", "--total_shuf", type=int, help="Total number of shuffled scores across all SNPs. Overrides --num_shuf")
@@ -37,7 +37,7 @@ def update_variant_summary_args(parser):
     parser.add_argument("-o", "--out_prefix", type=str, required=True, help="Path to storing the summary file average across folds, directory should already exist")
     parser.add_argument("-p", "--peaks", type=str, required=True, help="Bed file containing peak regions")
     parser.add_argument("-g", "--genes", type=str, required=True, help="Bed file containing gene regions")
-    parser.add_argument("-sc", "--schema", type=str, required=True, choices=['bed', 'plink', 'neuro-variants', 'chrombpnet', 'original'], default='chrombpnet', help="Format for the input variants list")
+    parser.add_argument("-sc", "--schema", type=str, required=True, choices=['bed', 'plink', 'chrombpnet', 'original'], default='chrombpnet', help="Format for the input variants list")
     parser.add_argument("-sl", "--score_list",  nargs='+', required=True)
 
 def fetch_variant_summary_args():
