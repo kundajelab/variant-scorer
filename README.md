@@ -73,4 +73,4 @@ python variant_summary_across_folds.py -s [VARIANT_SCORE_PATH] -o [out_prefix] -
 
 ---
 
-**Note:** pos (position) column is for 1-indexed SNP position. In a BED file, this is the third column for SNPs.
+**Note:** pos (position) column is for 1-indexed SNP position.
