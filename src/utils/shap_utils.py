@@ -136,7 +136,10 @@ def fetch_shap(model, variants_table, input_len, genome_fasta, batch_size, debug
             allele1_counts_shap_batch = allele1_counts_shap_batch[0] * allele1_input[0]
             allele2_counts_shap_batch = allele2_counts_shap_batch[0] * allele2_input[0]
 
-        else:            
+            allele1_counts_shap.extend(allele1_counts_shap_batch)
+            allele2_counts_shap.extend(allele2_counts_shap_batch)
+
+        else:
             allele1_input = allele1_seqs
             allele2_input = allele2_seqs
 
