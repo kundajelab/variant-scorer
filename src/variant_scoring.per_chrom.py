@@ -218,19 +218,16 @@ def main():
         chrom_variants_table["allele2_pred_counts"] = allele2_pred_counts
         chrom_variants_table["logfc"] = logfc
         chrom_variants_table["abs_logfc"] = abs(chrom_variants_table["logfc"])
-        chrom_variants_table["jsd"] = jsd
         if have_indel_variants:
-            chrom_variants_table["adjusted_jsd"] = adjusted_jsd_list
-            chrom_variants_table["abs_logfc_x_jsd"] = chrom_variants_table["abs_logfc"] * chrom_variants_table["adjusted_jsd"]
+            chrom_variants_table["jsd"] = adjusted_jsd_list
         else:
-            chrom_variants_table["abs_logfc_x_jsd"] = chrom_variants_table["abs_logfc"] * chrom_variants_table["jsd"]
+            chrom_variants_table["jsd"] = jsd
+        chrom_variants_table["original_jsd"] = jsd
+        chrom_variants_table["abs_logfc_x_jsd"] = chrom_variants_table["abs_logfc"] * chrom_variants_table["jsd"]
 
         if len(shuf_variants_table) > 0:
             chrom_variants_table["abs_logfc_pval"] = get_pvals(chrom_variants_table["abs_logfc"].tolist(), shuf_abs_logfc)
-            if have_indel_variants:
-                chrom_variants_table["jsd_pval"] = get_pvals(chrom_variants_table["adjusted_jsd"].tolist(), shuf_jsd)
-            else:
-                chrom_variants_table["jsd_pval"] = get_pvals(chrom_variants_table["jsd"].tolist(), shuf_jsd)
+            chrom_variants_table["jsd_pval"] = get_pvals(chrom_variants_table["jsd"].tolist(), shuf_jsd)
             chrom_variants_table["abs_logfc_x_jsd_pval"] = get_pvals(chrom_variants_table["abs_logfc_x_jsd"].tolist(), shuf_abs_logfc_jsd)
         if args.peaks:
             chrom_variants_table["allele1_percentile"] = allele1_percentile
