@@ -119,24 +119,53 @@ def fetch_shap(model, variants_table, input_len, genome_fasta, batch_size, debug
         batch_rsids, allele1_seqs, allele2_seqs = var_gen[i]
 
         if lite:
-            counts_model_input = [model.input[0], model.input[2]]
-            allele1_input = [allele1_seqs, np.zeros((allele1_seqs.shape[0], 1))]
-            allele2_input = [allele2_seqs, np.zeros((allele2_seqs.shape[0], 1))]
+            if shap_type == "counts":
+                counts_model_input = [model.input[0], model.input[2]]
+                allele1_input = [allele1_seqs, np.zeros((allele1_seqs.shape[0], 1))]
+                allele2_input = [allele2_seqs, np.zeros((allele2_seqs.shape[0], 1))]
 
-            profile_model_counts_explainer = shap.explainers.deep.TFDeepExplainer(
-                (counts_model_input, tf.reduce_sum(model.outputs[1], axis=-1)),
-                shuffle_several_times,
-                combine_mult_and_diffref=combine_mult_and_diffref)
+                profile_model_counts_explainer = shap.explainers.deep.TFDeepExplainer(
+                    (counts_model_input, tf.reduce_sum(model.outputs[1], axis=-1)),
+                    shuffle_several_times,
+                    combine_mult_and_diffref=combine_mult_and_diffref)
 
-            allele1_counts_shap_batch = profile_model_counts_explainer.shap_values(
-                allele1_input, progress_message=10)
-            allele2_counts_shap_batch = profile_model_counts_explainer.shap_values(
-                allele2_input, progress_message=10)
+                allele1_counts_shap_batch = profile_model_counts_explainer.shap_values(
+                    allele1_input, progress_message=10)
+                allele2_counts_shap_batch = profile_model_counts_explainer.shap_values(
+                    allele2_input, progress_message=10)
 
-            allele1_counts_shap_batch = allele1_counts_shap_batch[0] * allele1_input[0]
-            allele2_counts_shap_batch = allele2_counts_shap_batch[0] * allele2_input[0]
+                allele1_counts_shap_batch = allele1_counts_shap_batch[0] * allele1_input[0]
+                allele2_counts_shap_batch = allele2_counts_shap_batch[0] * allele2_input[0]
 
-        else:            
+                allele1_counts_shap.extend(allele1_counts_shap_batch)
+                allele2_counts_shap.extend(allele2_counts_shap_batch)
+
+            else:
+                assert shap_type == "profile"
+                profile_model_input = [model.input[0], model.input[1]]
+                outlen = model.output_shape[0][1]
+                
+                allele1_input = [allele1_seqs, np.zeros((allele1_seqs.shape[0], outlen))]
+                allele2_input = [allele2_seqs, np.zeros((allele2_seqs.shape[0], outlen))]
+                
+                weightedsum_meannormed_logits = get_weightedsum_meannormed_logits(model)
+                profile_model_profile_explainer = shap.explainers.deep.TFDeepExplainer(
+                    (profile_model_input, weightedsum_meannormed_logits),
+                    shuffle_several_times,
+                    combine_mult_and_diffref=combine_mult_and_diffref)
+                
+                allele1_profile_shap_batch = profile_model_profile_explainer.shap_values(
+                    allele1_input, progress_message=10)
+                allele2_profile_shap_batch = profile_model_profile_explainer.shap_values(
+                    allele2_input, progress_message=10)
+                
+                allele1_profile_shap_batch = allele1_profile_shap_batch[0] * allele1_input[0]
+                allele2_profile_shap_batch = allele2_profile_shap_batch[0] * allele2_input[0]
+
+                allele1_profile_shap.extend(allele1_profile_shap_batch)
+                allele2_profile_shap.extend(allele2_profile_shap_batch)
+
+        else:
             allele1_input = allele1_seqs
             allele2_input = allele2_seqs
 
