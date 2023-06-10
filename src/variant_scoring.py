@@ -133,11 +133,17 @@ def main():
             shuf_abs_percentile_change = np.abs(shuf_percentile_change)
             shuf_abs_logfc = np.abs(shuf_logfc)
             shuf_abs_logfc_jsd = shuf_abs_logfc * shuf_jsd
+            shuf_abs_logfc_max_percentile = shuf_abs_logfc * shuf_max_percentile
+            shuf_jsd_max_percentile = shuf_jsd * shuf_max_percentile
             shuf_abs_logfc_jsd_max_percentile = shuf_abs_logfc_jsd * shuf_max_percentile
 
             assert shuf_abs_logfc.shape == shuf_logfc.shape
             assert shuf_abs_logfc.shape == shuf_jsd.shape
             assert shuf_abs_logfc.shape == shuf_abs_logfc_jsd.shape
+            assert shuf_abs_logfc_max_percentile.shape == shuf_abs_logfc.shape
+            assert shuf_abs_logfc_max_percentile.shape == shuf_max_percentile.shape
+            assert shuf_jsd_max_percentile.shape == shuf_jsd.shape
+            assert shuf_jsd_max_percentile.shape == shuf_max_percentile.shape
             assert shuf_abs_logfc_jsd_max_percentile.shape == shuf_abs_logfc_jsd.shape
             assert shuf_abs_logfc_jsd_max_percentile.shape == shuf_max_percentile.shape
             assert shuf_max_percentile.shape == shuf_allele1_percentile.shape
@@ -195,7 +201,7 @@ def main():
                                         allele2_pred_profiles)
 
     indel_idx, adjusted_jsd_list = adjust_indel_jsd(variants_table,allele1_pred_profiles,allele2_pred_profiles,jsd)
-    have_indel_variants = (len(indel_idx) > 0)
+    has_indel_variants = (len(indel_idx) > 0)
 
     # unpack rsids to write outputs and write score to output
     assert np.array_equal(variants_table["rsid"].tolist(), rsids)
@@ -203,11 +209,11 @@ def main():
     variants_table["allele2_pred_counts"] = allele2_pred_counts
     variants_table["logfc"] = logfc
     variants_table["abs_logfc"] = abs(variants_table["logfc"])
-    if have_indel_variants:
+    if has_indel_variants:
         variants_table["jsd"] = adjusted_jsd_list
     else:
         variants_table["jsd"] = jsd
-    variants_table["original_jsd"] = jsd    
+    variants_table["original_jsd"] = jsd
     variants_table["abs_logfc_x_jsd"] = variants_table["abs_logfc"] * variants_table["jsd"]
 
     if len(shuf_variants_table) > 0:
@@ -220,11 +226,15 @@ def main():
         variants_table["max_percentile"] = variants_table[["allele1_percentile", "allele2_percentile"]].max(axis=1)
         variants_table["percentile_change"] = variants_table["allele2_percentile"] - variants_table["allele1_percentile"]
         variants_table["abs_percentile_change"] = abs(variants_table["percentile_change"])
+        variants_table["abs_logfc_x_max_percentile"] = variants_table["abs_logfc"] * variants_table["max_percentile"]
+        variants_table["jsd_x_max_percentile"] = variants_table["jsd"] * variants_table["max_percentile"]
         variants_table["abs_logfc_x_jsd_x_max_percentile"] = variants_table["abs_logfc_x_jsd"] * variants_table["max_percentile"]
 
         if len(shuf_variants_table) > 0:
             variants_table["max_percentile_pval"] = get_pvals(variants_table["max_percentile"].tolist(), shuf_max_percentile)
             variants_table["abs_percentile_change_pval"] = get_pvals(variants_table["abs_percentile_change"].tolist(), shuf_abs_percentile_change)
+            variants_table["abs_logfc_x_max_percentile_pval"] = get_pvals(variants_table["abs_logfc_x_max_percentile"].tolist(), shuf_abs_logfc_max_percentile)
+            variants_table["jsd_x_max_percentile_pval"] = get_pvals(variants_table["jsd_x_max_percentile"].tolist(), shuf_jsd_max_percentile)
             variants_table["abs_logfc_x_jsd_x_max_percentile_pval"] = get_pvals(variants_table["abs_logfc_x_jsd_x_max_percentile"].tolist(), shuf_abs_logfc_jsd_max_percentile)
 
     print()
@@ -254,6 +264,8 @@ def main():
                     shuffled.create_dataset('shuf_max_percentile', data=shuf_max_percentile, compression='gzip', compression_opts=9)
                     shuffled.create_dataset('shuf_percentile_change', data=shuf_percentile_change, compression='gzip', compression_opts=9)
                     shuffled.create_dataset('shuf_abs_percentile_change', data=shuf_abs_percentile_change, compression='gzip', compression_opts=9)
+                    shuffled.create_dataset('shuf_abs_logfc_max_percentile', data=shuf_abs_logfc_max_percentile, compression='gzip', compression_opts=9)
+                    shuffled.create_dataset('shuf_jsd_max_percentile', data=shuf_jsd_max_percentile, compression='gzip', compression_opts=9)
                     shuffled.create_dataset('shuf_abs_logfc_x_jsd_x_max_percentile', data=shuf_abs_logfc_jsd_max_percentile, compression='gzip', compression_opts=9)
 
     print("DONE")
