@@ -237,6 +237,9 @@ def main():
             variants_table["jsd_x_max_percentile_pval"] = get_pvals(variants_table["jsd_x_max_percentile"].tolist(), shuf_jsd_max_percentile)
             variants_table["abs_logfc_x_jsd_x_max_percentile_pval"] = get_pvals(variants_table["abs_logfc_x_jsd_x_max_percentile"].tolist(), shuf_abs_logfc_jsd_max_percentile)
 
+    if args.schema == "bed":
+        variants_table['pos'] = variants_table['pos'] - 1
+
     print()
     print(variants_table.head())
     print("Output score table shape:", variants_table.shape)

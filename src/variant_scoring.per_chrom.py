@@ -252,6 +252,9 @@ def main():
                 chrom_variants_table["jsd_x_max_percentile_pval"] = get_pvals(chrom_variants_table["jsd_x_max_percentile"].tolist(), shuf_jsd_max_percentile)
                 chrom_variants_table["abs_logfc_x_jsd_x_max_percentile_pval"] = get_pvals(chrom_variants_table["abs_logfc_x_jsd_x_max_percentile"].tolist(), shuf_abs_logfc_jsd_max_percentile)
 
+        if args.schema == "bed":
+            chrom_variants_table['pos'] = chrom_variants_table['pos'] - 1
+        
         print()
         print(chrom_variants_table.head())
         print("Output " + str(chrom) + " score table shape:", chrom_variants_table.shape)

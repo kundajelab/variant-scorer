@@ -53,6 +53,8 @@ def main():
 
             snp_scores.loc[:, (score + '.mean' + '.pval')] = geo_mean_overflow([score_dict[fold][score + '_pval'].values for fold in score_dict])
 
+    print(snp_scores.columns.tolist())
+
     tmp_bed_file_path = output_prefix + ".variant_table.tmp.bed"
     if args.schema == "bed":
         snp_scores_bed_format = snp_scores[['chr','pos','end','allele1','allele2','rsid']].copy()
