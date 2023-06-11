@@ -18,6 +18,7 @@ from matplotlib.pyplot import figure
 import numpy as np
 import os
 from utils.argmanager import *
+from utils.helpers import *
 
 def geo_mean_overflow(iterable,axis=0):
     return np.exp(np.log(iterable).mean(axis=0))
@@ -39,8 +40,7 @@ def main():
         var_score = pd.read_table(variant_score_file)
         score_dict[i] = var_score
 
-    snp_scores = score_dict[0][["chr", "pos", "allele1", "allele2", "rsid"]].copy()
-
+    score_dict[0][get_variant_schema(args.schema)].copy()
 
     for score in ["logfc"]:
         if score in score_dict[0]:
