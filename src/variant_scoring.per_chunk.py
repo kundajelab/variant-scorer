@@ -242,6 +242,9 @@ def main():
                 chunk_variants_table["abs_logfc_x_jsd_x_max_percentile_pval"] = chunk_variants_table["abs_logfc_x_jsd_x_max_percentile"].apply(lambda x:
                                                             1 - (scipy.stats.percentileofscore(shuf_abs_logfc_jsd_max_percentile, x) / 100))
 
+        if args.schema == "bed":
+            chunk_variants_table['pos'] = chunk_variants_table['pos'] - 1
+
         print()
         print(chunk_variants_table.head())
         print("Output " + str(chunk) + " score table shape:", chunk_variants_table.shape)
