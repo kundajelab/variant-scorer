@@ -33,9 +33,10 @@ def main():
 
     score_dict = {}
     for i in range(len(variant_table_list)):
-        var_score = variant_table_list[i]
-        assert os.path.isfile(variant_score_path + var_score)
-        var_score = pd.read_table(variant_score_path + var_score)
+        variant_score_file = os.path.join(variant_score_path, variant_table_list[i])
+        print(variant_score_file)
+        assert os.path.isfile(variant_score_file)
+        var_score = pd.read_table(variant_score_file)
         score_dict[i] = var_score
 
     snp_scores = score_dict[0][["chr", "pos", "allele1", "allele2", "rsid"]].copy()
