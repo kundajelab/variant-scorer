@@ -40,32 +40,35 @@ def main():
         var_score = pd.read_table(variant_score_file)
         score_dict[i] = var_score
 
-    score_dict[0][get_variant_schema(args.schema)].copy()
+    variant_scores = score_dict[0][get_variant_schema(args.schema)].copy()
 
     for score in ["logfc"]:
         if score in score_dict[0]:
-            snp_scores.loc[:, (score + '.mean')] = np.mean(np.array([score_dict[fold][score].tolist()
+            variant_scores.loc[:, (score + '.mean')] = np.mean(np.array([score_dict[fold][score].tolist()
                                                                     for fold in score_dict]), axis=0)
     for score in ["abs_logfc", "jsd", "abs_logfc_x_jsd", "abs_logfc_x_max_percentile", "jsd_x_max_percentile", "abs_logfc_x_jsd_x_max_percentile"]:
         if score in score_dict[0]:
-            snp_scores.loc[:, (score + '.mean')] = np.mean(np.array([score_dict[fold][score].tolist()
+            variant_scores.loc[:, (score + '.mean')] = np.mean(np.array([score_dict[fold][score].tolist()
                                                                     for fold in score_dict]), axis=0)
 
-            snp_scores.loc[:, (score + '.mean' + '.pval')] = geo_mean_overflow([score_dict[fold][score + '_pval'].values for fold in score_dict])
+            variant_scores.loc[:, (score + '.mean' + '.pval')] = geo_mean_overflow([score_dict[fold][score + '_pval'].values for fold in score_dict])
 
-    print(snp_scores.columns.tolist())
+    print(variant_scores.columns.tolist())
 
     tmp_bed_file_path = output_prefix + ".variant_table.tmp.bed"
+
+    print(tmp_bed_file_path)
+
     if args.schema == "bed":
-        snp_scores_bed_format = snp_scores[['chr','pos','end','allele1','allele2','rsid']].copy()
+        variant_scores_bed_format = variant_scores[['chr','pos','end','allele1','allele2','rsid']].copy()
     else:
         ### convert to bed format
-        snp_scores_bed_format = snp_scores[['chr','pos','allele1','allele2','rsid']].copy()
-        snp_scores_bed_format['pos']  = snp_scores_bed_format.apply(lambda x: int(x.pos)-1, axis = 1)
-        snp_scores_bed_format['end']  = snp_scores_bed_format.apply(lambda x: int(x.pos)+len(x.allele1), axis = 1)
-        snp_scores_bed_format = snp_scores_bed_format[['chr','pos','end','allele1','allele2','rsid']]
-        snp_scores_bed_format = snp_scores_bed_format.sort_values(["chr","pos","end"])
-        snp_scores_bed_format.to_csv(tmp_bed_file_path,\
+        variant_scores_bed_format = variant_scores[['chr','pos','allele1','allele2','rsid']].copy()
+        variant_scores_bed_format['pos']  = variant_scores_bed_format.apply(lambda x: int(x.pos)-1, axis = 1)
+        variant_scores_bed_format['end']  = variant_scores_bed_format.apply(lambda x: int(x.pos)+len(x.allele1), axis = 1)
+        variant_scores_bed_format = variant_scores_bed_format[['chr','pos','end','allele1','allele2','rsid']]
+        variant_scores_bed_format = variant_scores_bed_format.sort_values(["chr","pos","end"])
+        variant_scores_bed_format.to_csv(tmp_bed_file_path,\
                                     sep="\t",\
                                     header=None,\
                                     index=False)
@@ -109,13 +112,13 @@ def main():
     _ = subprocess.call(peak_bedtools_intersect_cmd,\
                 shell=True)
     peak_intersect_df=pd.read_table(peak_intersect_path, sep='\t', header=None)
-    snp_scores['peak_overlap'] = False
-    column_idx = snp_scores.columns.get_loc("peak_overlap")
+    variant_scores['peak_overlap'] = False
+    column_idx = variant_scores.columns.get_loc("peak_overlap")
 
-    snp_scores.iloc[np.where(snp_scores['rsid'].isin(peak_intersect_df[5]))[0],column_idx] = True
-    snp_scores = snp_scores.merge(closest_gene_df,on='rsid', how='inner')
+    variant_scores.iloc[np.where(variant_scores['rsid'].isin(peak_intersect_df[5]))[0],column_idx] = True
+    variant_scores = variant_scores.merge(closest_gene_df,on='rsid', how='inner')
     out_file = output_prefix + ".average_across_folds.variant_scores.tsv"
-    snp_scores.to_csv(out_file,\
+    variant_scores.to_csv(out_file,\
                       sep="\t",\
                       index=False)
 
