@@ -16,7 +16,7 @@ from scipy.stats import wilcoxon
 from matplotlib import pyplot as plt
 from matplotlib.pyplot import figure
 import numpy as np
-import os 
+import os
 from utils.argmanager import *
 
 def geo_mean_overflow(iterable,axis=0):
@@ -30,22 +30,22 @@ def main():
     output_prefix = args.out_prefix
     genes = args.genes
     variant_table_list = args.score_list
-    
+
     score_dict = {}
     for i in range(len(variant_table_list)):
         var_score = variant_table_list[i]
         assert os.path.isfile(variant_score_path + var_score)
         var_score = pd.read_table(variant_score_path + var_score)
-        score_dict[i] = var_score  
-        
-    snp_scores = score_dict[0][["chr", "pos", "allele1", "allele2","rsid"]].copy()
+        score_dict[i] = var_score
+
+    snp_scores = score_dict[0][["chr", "pos", "allele1", "allele2", "rsid"]].copy()
 
 
     for score in ["logfc"]:
         if score in score_dict[0]:
             snp_scores.loc[:, (score + '.mean')] = np.mean(np.array([score_dict[fold][score].tolist()
                                                                     for fold in score_dict]), axis=0)
-    for score in ["abs_logfc", "jsd", "abs_logfc_x_jsd", "abs_logfc_x_jsd_x_max_percentile"]:
+    for score in ["abs_logfc", "jsd", "abs_logfc_x_jsd", "abs_logfc_x_max_percentile", "jsd_x_max_percentile", "abs_logfc_x_jsd_x_max_percentile"]:
         if score in score_dict[0]:
             snp_scores.loc[:, (score + '.mean')] = np.mean(np.array([score_dict[fold][score].tolist()
                                                                     for fold in score_dict]), axis=0)
@@ -113,8 +113,8 @@ def main():
     snp_scores = snp_scores.merge(closest_gene_df,on='rsid', how='inner')
     out_file = output_prefix + ".average_across_folds.variant_scores.tsv"
     snp_scores.to_csv(out_file,\
-                    sep="\t",\
-                    index=False)
+                      sep="\t",\
+                      index=False)
 
     print("DONE")
 
