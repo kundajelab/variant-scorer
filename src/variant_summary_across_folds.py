@@ -40,6 +40,12 @@ def main():
         score_dict[i] = var_score
 
     variant_scores = score_dict[0][get_variant_schema(args.schema)].copy()
+    for i in score_dict:
+        assert score_dict[i]['chr'].tolist() == variant_scores['chr'].tolist()
+        assert score_dict[i]['pos'].tolist() == variant_scores['pos'].tolist()
+        assert score_dict[i]['allele1'].tolist() == variant_scores['allele1'].tolist()
+        assert score_dict[i]['allele2'].tolist() == variant_scores['allele2'].tolist()
+        assert score_dict[i]['rsid'].tolist() == variant_scores['rsid'].tolist()
 
     for score in ["logfc"]:
         if score in score_dict[0]:
