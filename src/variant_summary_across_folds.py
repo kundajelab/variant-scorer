@@ -81,12 +81,12 @@ def main():
 
     import subprocess
     print("annotating with closest genes")
-    closest_gene_path="%s.closest_genes.bed"%output_prefix
+    closest_gene_path = "%s.closest_genes.bed"%output_prefix
     gene_bedtools_intersect_cmd = "bedtools closest -d -t first -k 3 -a %s -b %s > %s"%(tmp_bed_file_path, genes, closest_gene_path)
     _ = subprocess.call(gene_bedtools_intersect_cmd,\
-                shell=True)
+                        shell=True)
 
-    closest_gene_df = pd.read_csv(closest_gene_path, sep='\t', header=None)
+    closest_gene_df = pd.read_table(closest_gene_path, header=None)
 
     print()
     print(closest_gene_df.head())
@@ -116,14 +116,14 @@ def main():
     closest_gene_df['gene_distance_3'] = closest_gene_df['rsid'].apply(lambda x: gene_dists[x][2] if len(closest_genes[x]) > 2 else '.')
 
     print("annotating with peak overlap")
-    peak_intersect_path="%s.peak_overlap.bed"%output_prefix
-    peak_bedtools_intersect_cmd="bedtools intersect -wa -u -a %s -b %s > %s"%(tmp_bed_file_path, peak_path, peak_intersect_path)
+    peak_intersect_path = "%s.peak_overlap.bed"%output_prefix
+    peak_bedtools_intersect_cmd = "bedtools intersect -wa -u -a %s -b %s > %s"%(tmp_bed_file_path, peak_path, peak_intersect_path)
     _ = subprocess.call(peak_bedtools_intersect_cmd,\
-                shell=True)
-    peak_intersect_df=pd.read_table(peak_intersect_path, sep='\t', header=None)
+                        shell=True)
+    peak_intersect_df = pd.read_table(peak_intersect_path, header=None)
     os.remove(tmp_bed_file_path)
 
-    variant_scores['peak_overlap'] = variant_scores['rsid'].isin(peak_intersect_df[5])
+    variant_scores['peak_overlap'] = variant_scores['rsid'].isin(peak_intersect_df[5].tolist())
     variant_scores = variant_scores.merge(closest_gene_df, on='rsid', how='inner')
 
     print()
