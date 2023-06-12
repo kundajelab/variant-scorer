@@ -218,12 +218,12 @@ def main():
         chunk_variants_table["abs_logfc_x_jsd"] = chunk_variants_table["abs_logfc"] * chunk_variants_table["jsd"]
 
         if len(shuf_variants_table) > 0:
-            chunk_variants_table["logfc_pval"] = chunk_variants_table["logfc"].apply(lambda x:
+            chunk_variants_table["logfc.pval"] = chunk_variants_table["logfc"].apply(lambda x:
                                                                                      2 * min(scipy.stats.percentileofscore(shuf_logfc, x) / 100,
                                                                                              1 - (scipy.stats.percentileofscore(shuf_logfc, x) / 100)))
-            chunk_variants_table["jsd_pval"] = chunk_variants_table["jsd"].apply(lambda x:
+            chunk_variants_table["jsd.pval"] = chunk_variants_table["jsd"].apply(lambda x:
                                                                              1 - (scipy.stats.percentileofscore(shuf_jsd, x) / 100))
-            chunk_variants_table["abs_logfc_x_jsd_pval"] = chunk_variants_table["abs_logfc_x_jsd"].apply(lambda x:
+            chunk_variants_table["abs_logfc_x_jsd.pval"] = chunk_variants_table["abs_logfc_x_jsd"].apply(lambda x:
                                                                              1 - (scipy.stats.percentileofscore(shuf_abs_logfc_jsd, x) / 100))
 
         if args.peaks:
@@ -234,12 +234,12 @@ def main():
             chunk_variants_table["abs_logfc_x_jsd_x_max_percentile"] = chunk_variants_table["abs_logfc_x_jsd"] * chunk_variants_table["max_percentile"]
 
             if len(shuf_variants_table) > 0:
-                chunk_variants_table["max_percentile_pval"] = chunk_variants_table["max_percentile"].apply(lambda x:
+                chunk_variants_table["max_percentile.pval"] = chunk_variants_table["max_percentile"].apply(lambda x:
                                                                              1 - (scipy.stats.percentileofscore(shuf_max_percentile, x) / 100))
-                chunk_variants_table["percentile_change_pval"] = chunk_variants_table["percentile_change"].apply(lambda x:
+                chunk_variants_table["percentile_change.pval"] = chunk_variants_table["percentile_change"].apply(lambda x:
                                                                                          2 * min(scipy.stats.percentileofscore(shuf_percentile_change, x) / 100,
                                                                                                  1 - (scipy.stats.percentileofscore(shuf_percentile_change, x) / 100)))
-                chunk_variants_table["abs_logfc_x_jsd_x_max_percentile_pval"] = chunk_variants_table["abs_logfc_x_jsd_x_max_percentile"].apply(lambda x:
+                chunk_variants_table["abs_logfc_x_jsd_x_max_percentile.pval"] = chunk_variants_table["abs_logfc_x_jsd_x_max_percentile"].apply(lambda x:
                                                             1 - (scipy.stats.percentileofscore(shuf_abs_logfc_jsd_max_percentile, x) / 100))
 
         if args.schema == "bed":

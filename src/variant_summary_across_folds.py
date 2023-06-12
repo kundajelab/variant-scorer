@@ -55,8 +55,10 @@ def main():
         if score in score_dict[0]:
             variant_scores.loc[:, (score + '.mean')] = np.mean(np.array([score_dict[fold][score].tolist()
                                                                     for fold in score_dict]), axis=0)
-
-            variant_scores.loc[:, (score + '.mean' + '.pval')] = geo_mean_overflow([score_dict[fold][score + '_pval'].values for fold in score_dict])
+            if score + '.pval' in score_dict[0]:
+                variant_scores.loc[:, (score + '.mean' + '.pval')] = geo_mean_overflow([score_dict[fold][score + '.pval'].values for fold in score_dict])
+            elif score + '_pval' in score_dict[0]:
+                variant_scores.loc[:, (score + '.mean' + '.pval')] = geo_mean_overflow([score_dict[fold][score + '_pval'].values for fold in score_dict])
 
     tmp_bed_file_path = output_prefix + ".variant_table.tmp.bed"
 

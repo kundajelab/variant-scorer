@@ -217,9 +217,9 @@ def main():
     variants_table["abs_logfc_x_jsd"] = variants_table["abs_logfc"] * variants_table["jsd"]
 
     if len(shuf_variants_table) > 0:
-        variants_table["abs_logfc_pval"] = get_pvals(variants_table["abs_logfc"].tolist(), shuf_abs_logfc)
-        variants_table["jsd_pval"] = get_pvals(variants_table["jsd"].tolist(), shuf_jsd)
-        variants_table["abs_logfc_x_jsd_pval"] = get_pvals(variants_table["abs_logfc_x_jsd"].tolist(), shuf_abs_logfc_jsd)
+        variants_table["abs_logfc.pval"] = get_pvals(variants_table["abs_logfc"].tolist(), shuf_abs_logfc)
+        variants_table["jsd.pval"] = get_pvals(variants_table["jsd"].tolist(), shuf_jsd)
+        variants_table["abs_logfc_x_jsd.pval"] = get_pvals(variants_table["abs_logfc_x_jsd"].tolist(), shuf_abs_logfc_jsd)
     if args.peaks:
         variants_table["allele1_percentile"] = allele1_percentile
         variants_table["allele2_percentile"] = allele2_percentile
@@ -231,11 +231,11 @@ def main():
         variants_table["abs_logfc_x_jsd_x_max_percentile"] = variants_table["abs_logfc_x_jsd"] * variants_table["max_percentile"]
 
         if len(shuf_variants_table) > 0:
-            variants_table["max_percentile_pval"] = get_pvals(variants_table["max_percentile"].tolist(), shuf_max_percentile)
-            variants_table["abs_percentile_change_pval"] = get_pvals(variants_table["abs_percentile_change"].tolist(), shuf_abs_percentile_change)
-            variants_table["abs_logfc_x_max_percentile_pval"] = get_pvals(variants_table["abs_logfc_x_max_percentile"].tolist(), shuf_abs_logfc_max_percentile)
-            variants_table["jsd_x_max_percentile_pval"] = get_pvals(variants_table["jsd_x_max_percentile"].tolist(), shuf_jsd_max_percentile)
-            variants_table["abs_logfc_x_jsd_x_max_percentile_pval"] = get_pvals(variants_table["abs_logfc_x_jsd_x_max_percentile"].tolist(), shuf_abs_logfc_jsd_max_percentile)
+            variants_table["max_percentile.pval"] = get_pvals(variants_table["max_percentile"].tolist(), shuf_max_percentile)
+            variants_table["abs_percentile_change.pval"] = get_pvals(variants_table["abs_percentile_change"].tolist(), shuf_abs_percentile_change)
+            variants_table["abs_logfc_x_max_percentile.pval"] = get_pvals(variants_table["abs_logfc_x_max_percentile"].tolist(), shuf_abs_logfc_max_percentile)
+            variants_table["jsd_x_max_percentile.pval"] = get_pvals(variants_table["jsd_x_max_percentile"].tolist(), shuf_jsd_max_percentile)
+            variants_table["abs_logfc_x_jsd_x_max_percentile.pval"] = get_pvals(variants_table["abs_logfc_x_jsd_x_max_percentile"].tolist(), shuf_abs_logfc_jsd_max_percentile)
 
     if args.schema == "bed":
         variants_table['pos'] = variants_table['pos'] - 1
