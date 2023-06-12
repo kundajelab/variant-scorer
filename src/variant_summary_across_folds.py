@@ -117,17 +117,14 @@ def main():
 
     print("annotating with peak overlap")
     peak_intersect_path="%s.peak_overlap.bed"%output_prefix
-    peak_bedtools_intersect_cmd="bedtools intersect -wa -u -a %s -b %s > %s"%(tmp_bed_file_path, peak_path,peak_intersect_path)
+    peak_bedtools_intersect_cmd="bedtools intersect -wa -u -a %s -b %s > %s"%(tmp_bed_file_path, peak_path, peak_intersect_path)
     _ = subprocess.call(peak_bedtools_intersect_cmd,\
                 shell=True)
     peak_intersect_df=pd.read_table(peak_intersect_path, sep='\t', header=None)
     os.remove(tmp_bed_file_path)
 
-    variant_scores['peak_overlap'] = False
-    column_idx = variant_scores.columns.get_loc("peak_overlap")
-
-    variant_scores.iloc[np.where(variant_scores['rsid'].isin(peak_intersect_df[5]))[0],column_idx] = True
-    variant_scores = variant_scores.merge(closest_gene_df,on='rsid', how='inner')
+    variant_scores['peak_overlap'] = variant_scores['rsid'].isin(peak_intersect_df[5])
+    variant_scores = variant_scores.merge(closest_gene_df, on='rsid', how='inner')
 
     print()
     print(variant_scores.head())
