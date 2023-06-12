@@ -35,7 +35,6 @@ def main():
     score_dict = {}
     for i in range(len(variant_table_list)):
         variant_score_file = os.path.join(variant_score_path, variant_table_list[i])
-        print(variant_score_file)
         assert os.path.isfile(variant_score_file)
         var_score = pd.read_table(variant_score_file)
         score_dict[i] = var_score
@@ -53,12 +52,8 @@ def main():
 
             variant_scores.loc[:, (score + '.mean' + '.pval')] = geo_mean_overflow([score_dict[fold][score + '_pval'].values for fold in score_dict])
 
-    print(variant_scores.columns.tolist())
-
     tmp_bed_file_path = output_prefix + ".variant_table.tmp.bed"
-
-    print(tmp_bed_file_path)
-
+    
     if args.schema == "bed":
         variant_scores_bed_format = variant_scores[['chr','pos','end','allele1','allele2','rsid']].copy()
     else:
@@ -75,14 +70,17 @@ def main():
                                 index=False)
 
     import subprocess
-    print("annotating with closest gene")
+    print("annotating with closest genes")
     closest_gene_path="%s.closest_genes.bed"%output_prefix
     gene_bedtools_intersect_cmd = "bedtools closest -d -t first -k 3 -a %s -b %s > %s"%(tmp_bed_file_path, genes, closest_gene_path)
     _ = subprocess.call(gene_bedtools_intersect_cmd,\
                 shell=True)
 
     closest_gene_df = pd.read_csv(closest_gene_path, sep='\t', header=None)
+   
+    print()
     print(closest_gene_df.head())
+    print("Closest genes table shape:", closest_gene_df.shape)
     print()
 
     closest_genes = {}
@@ -107,7 +105,7 @@ def main():
     closest_gene_df['closest_gene_3'] = closest_gene_df['rsid'].apply(lambda x: closest_genes[x][2] if len(closest_genes[x]) > 2 else '.')
     closest_gene_df['gene_distance_3'] = closest_gene_df['rsid'].apply(lambda x: gene_dists[x][2] if len(closest_genes[x]) > 2 else '.')
 
-    print("annotating with peak intersection")
+    print("annotating with peak overlap")
     peak_intersect_path="%s.peak_overlap.bed"%output_prefix
     peak_bedtools_intersect_cmd="bedtools intersect -wa -u -a %s -b %s > %s"%(tmp_bed_file_path, peak_path,peak_intersect_path)
     _ = subprocess.call(peak_bedtools_intersect_cmd,\
@@ -120,6 +118,12 @@ def main():
 
     variant_scores.iloc[np.where(variant_scores['rsid'].isin(peak_intersect_df[5]))[0],column_idx] = True
     variant_scores = variant_scores.merge(closest_gene_df,on='rsid', how='inner')
+    
+    print()
+    print(variant_scores.head())
+    print("Summary score table shape:", variant_scores.shape)
+    print()
+
     out_file = output_prefix + ".mean.variant_scores.tsv"
     variant_scores.to_csv(out_file,\
                           sep="\t",\
