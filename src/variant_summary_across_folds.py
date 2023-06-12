@@ -68,10 +68,11 @@ def main():
         variant_scores_bed_format['end']  = variant_scores_bed_format.apply(lambda x: int(x.pos)+len(x.allele1), axis = 1)
         variant_scores_bed_format = variant_scores_bed_format[['chr','pos','end','allele1','allele2','rsid']]
         variant_scores_bed_format = variant_scores_bed_format.sort_values(["chr","pos","end"])
-        variant_scores_bed_format.to_csv(tmp_bed_file_path,\
-                                    sep="\t",\
-                                    header=None,\
-                                    index=False)
+    
+    variant_scores_bed_format.to_csv(tmp_bed_file_path,\
+                                sep="\t",\
+                                header=None,\
+                                index=False)
 
     import subprocess
     print("annotating with closest gene")
