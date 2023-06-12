@@ -16,8 +16,9 @@ from scipy.stats import wilcoxon
 from matplotlib import pyplot as plt
 from matplotlib.pyplot import figure
 import numpy as np
-import os 
+import os
 from utils.argmanager import *
+from utils.helpers import *
 
 def geo_mean_overflow(iterable,axis=0):
     return np.exp(np.log(iterable).mean(axis=0))
@@ -30,52 +31,66 @@ def main():
     output_prefix = args.out_prefix
     genes = args.genes
     variant_table_list = args.score_list
-    
+
     score_dict = {}
     for i in range(len(variant_table_list)):
-        var_score = variant_table_list[i]
-        assert os.path.isfile(variant_score_path + var_score)
-        var_score = pd.read_table(variant_score_path + var_score)
-        score_dict[i] = var_score  
-        
-    snp_scores = score_dict[0][["chr", "pos", "allele1", "allele2","rsid"]].copy()
+        variant_score_file = os.path.join(variant_score_path, variant_table_list[i])
+        assert os.path.isfile(variant_score_file)
+        var_score = pd.read_table(variant_score_file)
+        score_dict[i] = var_score
 
+    variant_scores = score_dict[0][get_variant_schema(args.schema)].copy()
+    for i in score_dict:
+        assert score_dict[i]['chr'].tolist() == variant_scores['chr'].tolist()
+        assert score_dict[i]['pos'].tolist() == variant_scores['pos'].tolist()
+        assert score_dict[i]['allele1'].tolist() == variant_scores['allele1'].tolist()
+        assert score_dict[i]['allele2'].tolist() == variant_scores['allele2'].tolist()
+        assert score_dict[i]['rsid'].tolist() == variant_scores['rsid'].tolist()
 
     for score in ["logfc"]:
         if score in score_dict[0]:
-            snp_scores.loc[:, (score + '.mean')] = np.mean(np.array([score_dict[fold][score].tolist()
+            variant_scores.loc[:, (score + '.mean')] = np.mean(np.array([score_dict[fold][score].tolist()
                                                                     for fold in score_dict]), axis=0)
-    for score in ["abs_logfc", "jsd", "abs_logfc_x_jsd", "abs_logfc_x_jsd_x_max_percentile"]:
+    for score in ["abs_logfc", "jsd", "abs_logfc_x_jsd", "abs_logfc_x_max_percentile", "jsd_x_max_percentile", "abs_logfc_x_jsd_x_max_percentile"]:
         if score in score_dict[0]:
-            snp_scores.loc[:, (score + '.mean')] = np.mean(np.array([score_dict[fold][score].tolist()
+            variant_scores.loc[:, (score + '.mean')] = np.mean(np.array([score_dict[fold][score].tolist()
                                                                     for fold in score_dict]), axis=0)
-
-            snp_scores.loc[:, (score + '.mean' + '.pval')] = geo_mean_overflow([score_dict[fold][score + '_pval'].values for fold in score_dict])
+            if score + '.pval' in score_dict[0]:
+                variant_scores.loc[:, (score + '.mean' + '.pval')] = geo_mean_overflow([score_dict[fold][score + '.pval'].values for fold in score_dict])
+            elif score + '_pval' in score_dict[0]:
+                variant_scores.loc[:, (score + '.mean' + '.pval')] = geo_mean_overflow([score_dict[fold][score + '_pval'].values for fold in score_dict])
 
     tmp_bed_file_path = output_prefix + ".variant_table.tmp.bed"
+
     if args.schema == "bed":
-        snp_scores_bed_format = snp_scores[['chr','pos','end','allele1','allele2','rsid']].copy()
+        if variant_scores['pos'].equals(variant_scores['end']):
+            variant_scores['pos'] = variant_scores['pos'] - 1
+        variant_scores_bed_format = variant_scores[['chr','pos','end','allele1','allele2','rsid']].copy()
     else:
         ### convert to bed format
-        snp_scores_bed_format = snp_scores[['chr','pos','allele1','allele2','rsid']].copy()
-        snp_scores_bed_format['pos']  = snp_scores_bed_format.apply(lambda x: int(x.pos)-1, axis = 1)
-        snp_scores_bed_format['end']  = snp_scores_bed_format.apply(lambda x: int(x.pos)+len(x.allele1), axis = 1)
-        snp_scores_bed_format = snp_scores_bed_format[['chr','pos','end','allele1','allele2','rsid']]
-        snp_scores_bed_format = snp_scores_bed_format.sort_values(["chr","pos","end"])
-        snp_scores_bed_format.to_csv(tmp_bed_file_path,\
-                                    sep="\t",\
-                                    header=None,\
-                                    index=False)
+        variant_scores_bed_format = variant_scores[['chr','pos','allele1','allele2','rsid']].copy()
+        variant_scores_bed_format['pos']  = variant_scores_bed_format.apply(lambda x: int(x.pos)-1, axis = 1)
+        variant_scores_bed_format['end']  = variant_scores_bed_format.apply(lambda x: int(x.pos)+len(x.allele1), axis = 1)
+        variant_scores_bed_format = variant_scores_bed_format[['chr','pos','end','allele1','allele2','rsid']]
+        variant_scores_bed_format = variant_scores_bed_format.sort_values(["chr","pos","end"])
+
+    variant_scores_bed_format.to_csv(tmp_bed_file_path,\
+                                sep="\t",\
+                                header=None,\
+                                index=False)
 
     import subprocess
-    print("annotating with closest gene")
-    closest_gene_path="%s.closest_gene.bed"%output_prefix
-    gene_bedtools_intersect_cmd = "bedtools closest -d -t first -k 3 -a %s -b %s > %s"%(tmp_bed_file_path,genes,closest_gene_path)
+    print("annotating with closest genes")
+    closest_gene_path="%s.closest_genes.bed"%output_prefix
+    gene_bedtools_intersect_cmd = "bedtools closest -d -t first -k 3 -a %s -b %s > %s"%(tmp_bed_file_path, genes, closest_gene_path)
     _ = subprocess.call(gene_bedtools_intersect_cmd,\
                 shell=True)
 
     closest_gene_df = pd.read_csv(closest_gene_path, sep='\t', header=None)
+
+    print()
     print(closest_gene_df.head())
+    print("Closest genes table shape:", closest_gene_df.shape)
     print()
 
     closest_genes = {}
@@ -100,21 +115,29 @@ def main():
     closest_gene_df['closest_gene_3'] = closest_gene_df['rsid'].apply(lambda x: closest_genes[x][2] if len(closest_genes[x]) > 2 else '.')
     closest_gene_df['gene_distance_3'] = closest_gene_df['rsid'].apply(lambda x: gene_dists[x][2] if len(closest_genes[x]) > 2 else '.')
 
-    print("annotating with peak intersection")
-    peak_intersect_path="%s.peak_intersect.bed"%output_prefix
-    peak_bedtools_intersect_cmd="bedtools intersect -wa -u -a %s -b %s > %s"%(tmp_bed_file_path,peak_path,peak_intersect_path)
+    print("annotating with peak overlap")
+    peak_intersect_path="%s.peak_overlap.bed"%output_prefix
+    peak_bedtools_intersect_cmd="bedtools intersect -wa -u -a %s -b %s > %s"%(tmp_bed_file_path, peak_path,peak_intersect_path)
     _ = subprocess.call(peak_bedtools_intersect_cmd,\
                 shell=True)
     peak_intersect_df=pd.read_table(peak_intersect_path, sep='\t', header=None)
-    snp_scores['peak_overlap'] = False
-    column_idx = snp_scores.columns.get_loc("peak_overlap")
+    os.remove(tmp_bed_file_path)
 
-    snp_scores.iloc[np.where(snp_scores['rsid'].isin(peak_intersect_df[5]))[0],column_idx] = True
-    snp_scores = snp_scores.merge(closest_gene_df,on='rsid', how='inner')
-    out_file = output_prefix + ".average_across_folds.variant_scores.tsv"
-    snp_scores.to_csv(out_file,\
-                    sep="\t",\
-                    index=False)
+    variant_scores['peak_overlap'] = False
+    column_idx = variant_scores.columns.get_loc("peak_overlap")
+
+    variant_scores.iloc[np.where(variant_scores['rsid'].isin(peak_intersect_df[5]))[0],column_idx] = True
+    variant_scores = variant_scores.merge(closest_gene_df,on='rsid', how='inner')
+
+    print()
+    print(variant_scores.head())
+    print("Summary score table shape:", variant_scores.shape)
+    print()
+
+    out_file = output_prefix + ".mean.variant_scores.peak_overlap.closest_genes.tsv"
+    variant_scores.to_csv(out_file,\
+                          sep="\t",\
+                          index=False)
 
     print("DONE")
 
