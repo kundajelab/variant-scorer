@@ -53,9 +53,9 @@ def main():
             variant_scores.loc[:, (score + '.mean' + '.pval')] = geo_mean_overflow([score_dict[fold][score + '_pval'].values for fold in score_dict])
 
     tmp_bed_file_path = output_prefix + ".variant_table.tmp.bed"
-    
+
     if args.schema == "bed":
-        if variant_scores['pos'] == variant_scores['end']:
+        if variant_scores['pos'].equals(variant_scores['end']):
             variant_scores['pos'] = variant_scores['pos'] - 1
         variant_scores_bed_format = variant_scores[['chr','pos','end','allele1','allele2','rsid']].copy()
     else:
@@ -65,7 +65,7 @@ def main():
         variant_scores_bed_format['end']  = variant_scores_bed_format.apply(lambda x: int(x.pos)+len(x.allele1), axis = 1)
         variant_scores_bed_format = variant_scores_bed_format[['chr','pos','end','allele1','allele2','rsid']]
         variant_scores_bed_format = variant_scores_bed_format.sort_values(["chr","pos","end"])
-    
+
     variant_scores_bed_format.to_csv(tmp_bed_file_path,\
                                 sep="\t",\
                                 header=None,\
@@ -79,7 +79,7 @@ def main():
                 shell=True)
 
     closest_gene_df = pd.read_csv(closest_gene_path, sep='\t', header=None)
-   
+
     print()
     print(closest_gene_df.head())
     print("Closest genes table shape:", closest_gene_df.shape)
@@ -114,19 +114,19 @@ def main():
                 shell=True)
     peak_intersect_df=pd.read_table(peak_intersect_path, sep='\t', header=None)
     os.remove(tmp_bed_file_path)
-    
+
     variant_scores['peak_overlap'] = False
     column_idx = variant_scores.columns.get_loc("peak_overlap")
 
     variant_scores.iloc[np.where(variant_scores['rsid'].isin(peak_intersect_df[5]))[0],column_idx] = True
     variant_scores = variant_scores.merge(closest_gene_df,on='rsid', how='inner')
-    
+
     print()
     print(variant_scores.head())
     print("Summary score table shape:", variant_scores.shape)
     print()
 
-    out_file = output_prefix + ".mean.variant_scores.tsv"
+    out_file = output_prefix + ".mean.variant_scores.peak_overlap.closest_genes.tsv"
     variant_scores.to_csv(out_file,\
                           sep="\t",\
                           index=False)
