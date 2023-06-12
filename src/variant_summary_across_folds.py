@@ -55,6 +55,8 @@ def main():
     tmp_bed_file_path = output_prefix + ".variant_table.tmp.bed"
     
     if args.schema == "bed":
+        if variant_scores['pos'] == variant_scores['end']:
+            variant_scores['pos'] = variant_scores['pos'] - 1
         variant_scores_bed_format = variant_scores[['chr','pos','end','allele1','allele2','rsid']].copy()
     else:
         ### convert to bed format
