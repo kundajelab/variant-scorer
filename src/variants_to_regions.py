@@ -92,7 +92,7 @@ def main():
     # make dataframes
     df1 = pd.DataFrame(allele1_coords_all)
     df2 = pd.DataFrame(allele2_coords_all)
-
+    
     # filter out any indel variants (i.e. those with -1 in the position columns)
     # first detect any such variants and raise a warning
     if -1 in df1[1].to_list():
@@ -102,9 +102,11 @@ def main():
     df1 = df1[df1[1] != -1]
     df2 = df2[df2[1] != -1]
 
+    # df2 and df1 are expected to be equal since there are no indel's
+    assert df1.equals(df2)
+
     # write to bed files
-    df1.to_csv(Path(args.output_dir) / "allele1_variants_regions.bed", sep="\t", header=None, index=None)
-    df2.to_csv(Path(args.output_dir) / "allele2_variants_regions.bed", sep="\t", header=None, index=None)
+    df1.to_csv(Path(args.output_dir) / "variants_regions.bed", sep="\t", header=None, index=None)
 
 if __name__ == "__main__":
     main()
