@@ -20,6 +20,7 @@ from utils import argmanager, losses
 def get_variant_schema(schema):
     var_SCHEMA = {'original': ['chr', 'pos', 'rsid', 'allele1', 'allele2'],
                   'plink': ['chr', 'rsid', 'ignore1', 'pos', 'allele1', 'allele2'],
+                  'plink2': ['chr', 'rsid', 'pos', 'allele1', 'allele2'],
                   'bed': ['chr', 'pos', 'end', 'allele1', 'allele2', 'rsid'],
                   'chrombpnet': ['chr', 'pos', 'allele1', 'allele2', 'rsid']}
     return var_SCHEMA[schema]
