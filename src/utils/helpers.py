@@ -327,24 +327,20 @@ def create_shuffle_table(variants_table,random_seed=None,total_shuf=None, num_sh
             shuf_variants_table = pd.DataFrame()
     return shuf_variants_table
 
-def get_pvals(obs, bg):
-    sorted_obs = np.sort(obs)[::-1]
-    sorted_obs_indices = np.argsort(obs)[::-1]
-    sorted_obs_indices = np.argsort(sorted_obs_indices)
-    sorted_obs_indices_list = sorted_obs_indices.astype(int).tolist()
-    sorted_bg = np.sort(bg)[::-1]
+def get_pvals(obs, bg, tail):
+    sorted_bg = np.sort(bg)
+    if tail == 'right' or tail == 'both':
+        rank_right = len(sorted_bg) - np.searchsorted(sorted_bg, obs, side='left')
+        pval_right = (rank_right + 1) / (len(sorted_bg) + 1)
+        if tail == 'right':
+            return pval_right
+    if tail == 'left' or tail == 'both':
+        rank_left = np.searchsorted(sorted_bg, obs, side='right')
+        pval_left = (rank_left + 1) / (len(sorted_bg) + 1)
+        if tail == 'left':
+            return pval_left
+    assert tail == 'both'
+    min_pval = np.minimum(pval_left, pval_right)
+    pval_both = min_pval * 2
 
-    bg_pointer = 0
-    bg_len = len(sorted_bg)
-    sorted_pvals = []
-
-    for val in sorted_obs:
-        while val <= sorted_bg[bg_pointer] and bg_pointer != bg_len - 1:
-            bg_pointer += 1
-        sorted_pvals.append((bg_pointer + 1) / (bg_len + 1))
-
-    sorted_pvals = np.array(sorted_pvals)
-    pvals = sorted_pvals[sorted_obs_indices_list]
-
-    return pvals
-
+    return pval_both
