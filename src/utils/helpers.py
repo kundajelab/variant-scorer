@@ -18,11 +18,11 @@ from utils import argmanager, losses
 
 
 def get_variant_schema(schema):
-    var_SCHEMA = {'original': ['chr', 'pos', 'rsid', 'allele1', 'allele2'],
-                  'plink': ['chr', 'rsid', 'ignore1', 'pos', 'allele1', 'allele2'],
-                  'plink2': ['chr', 'rsid', 'pos', 'allele1', 'allele2'],
-                  'bed': ['chr', 'pos', 'end', 'allele1', 'allele2', 'rsid'],
-                  'chrombpnet': ['chr', 'pos', 'allele1', 'allele2', 'rsid']}
+    var_SCHEMA = {'original': ['chr', 'pos', 'variant_id', 'allele1', 'allele2'],
+                  'plink': ['chr', 'variant_id', 'ignore1', 'pos', 'allele1', 'allele2'],
+                  'plink2': ['chr', 'variant_id', 'pos', 'allele1', 'allele2'],
+                  'bed': ['chr', 'pos', 'end', 'allele1', 'allele2', 'variant_id'],
+                  'chrombpnet': ['chr', 'pos', 'allele1', 'allele2', 'variant_id']}
     return var_SCHEMA[schema]
 
 def get_peak_schema(schema):
@@ -125,7 +125,7 @@ def fetch_peak_predictions(model, peaks, input_len, genome_fasta, batch_size, de
         return pred_counts,pred_profiles
 
 def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, batch_size, debug_mode=False, lite=False, shuf=False, forward_only=False):
-    rsids = []
+    variant_ids = []
     allele1_pred_counts = []
     allele2_pred_counts = []
     allele1_pred_profiles = []
@@ -146,7 +146,7 @@ def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, ba
 
     for i in tqdm(range(len(var_gen))):
 
-        batch_rsids, allele1_seqs, allele2_seqs = var_gen[i]
+        batch_variant_ids, allele1_seqs, allele2_seqs = var_gen[i]
         revcomp_allele1_seqs = allele1_seqs[:, ::-1, ::-1]
         revcomp_allele2_seqs = allele2_seqs[:, ::-1, ::-1]
 
@@ -191,9 +191,9 @@ def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, ba
             revcomp_allele1_pred_profiles.extend(np.squeeze(softmax(revcomp_allele1_batch_preds[0])))
             revcomp_allele2_pred_profiles.extend(np.squeeze(softmax(revcomp_allele2_batch_preds[0])))
 
-        rsids.extend(batch_rsids)
+        variant_ids.extend(batch_variant_ids)
 
-    rsids = np.array(rsids)
+    variant_ids = np.array(variant_ids)
     allele1_pred_counts = np.array(allele1_pred_counts)
     allele2_pred_counts = np.array(allele2_pred_counts)
     allele1_pred_profiles = np.array(allele1_pred_profiles)
@@ -208,10 +208,10 @@ def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, ba
         average_allele1_pred_profiles = np.average([allele1_pred_profiles,revcomp_allele1_pred_profiles[:,::-1]],axis=0)
         average_allele2_pred_counts = np.average([allele2_pred_counts,revcomp_allele2_pred_counts],axis=0)
         average_allele2_pred_profiles = np.average([allele2_pred_profiles,revcomp_allele2_pred_profiles[:,::-1]],axis=0)
-        return rsids, average_allele1_pred_counts, average_allele2_pred_counts, \
+        return variant_ids, average_allele1_pred_counts, average_allele2_pred_counts, \
                average_allele1_pred_profiles, average_allele2_pred_profiles
     else:
-        return rsids, allele1_pred_counts, allele2_pred_counts, \
+        return variant_ids, allele1_pred_counts, allele2_pred_counts, \
                allele1_pred_profiles, allele2_pred_profiles
 
 
@@ -344,3 +344,6 @@ def get_pvals(obs, bg, tail):
     pval_both = min_pval * 2
 
     return pval_both
+
+def geo_mean_overflow(iterable,axis=0):
+    return np.exp(np.log(iterable).mean(axis=0))

@@ -14,6 +14,7 @@ from generators.peak_generator import PeakGenerator
 from utils import argmanager, losses
 from utils.helpers import *
 
+
 def main():
     args = argmanager.fetch_scoring_args()
     print(args)
@@ -28,7 +29,7 @@ def main():
 
     # load the model and variants
     model = load_model_wrapper(args.model)
-    variants_table=load_variant_table(args.list, args.schema)
+    variants_table = load_variant_table(args.list, args.schema)
     variants_table = variants_table.fillna('-')
     
     chrom_sizes = pd.read_csv(args.chrom_sizes, header=None, sep='\t', names=['chrom', 'size'])
@@ -64,7 +65,7 @@ def main():
             print("Debug shuffled variants table shape:", shuf_variants_table.shape)
             print()
 
-        shuf_rsids, shuf_allele1_pred_counts, shuf_allele2_pred_counts, \
+        shuf_variant_ids, shuf_allele1_pred_counts, shuf_allele2_pred_counts, \
         shuf_allele1_pred_profiles, shuf_allele2_pred_profiles = fetch_variant_predictions(model,
                                                                             shuf_variants_table,
                                                                             input_len,
@@ -178,7 +179,7 @@ def main():
         print()
 
     # fetch model prediction for variants
-    rsids, allele1_pred_counts, allele2_pred_counts, \
+    variant_ids, allele1_pred_counts, allele2_pred_counts, \
     allele1_pred_profiles, allele2_pred_profiles = fetch_variant_predictions(model,
                                                                         variants_table,
                                                                         input_len,
@@ -206,8 +207,7 @@ def main():
     indel_idx, adjusted_jsd_list = adjust_indel_jsd(variants_table,allele1_pred_profiles,allele2_pred_profiles,jsd)
     has_indel_variants = (len(indel_idx) > 0)
 
-    # unpack rsids to write outputs and write score to output
-    assert np.array_equal(variants_table["rsid"].tolist(), rsids)
+    assert np.array_equal(variants_table["variant_id"].tolist(), variant_ids)
     variants_table["allele1_pred_counts"] = allele1_pred_counts
     variants_table["allele2_pred_counts"] = allele2_pred_counts
     variants_table["logfc"] = logfc
