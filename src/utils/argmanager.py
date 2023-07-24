@@ -2,7 +2,7 @@ import argparse
 
 
 def update_scoring_args(parser):
-    parser.add_argument("-l", "--list", type=str, required=True, help="TSV file containing list of variants to score")
+    parser.add_argument("-l", "--list", type=str, required=True, help="a TSV file containing a list of variants to score")
     parser.add_argument("-g", "--genome", type=str, required=True, help="Genome fasta")
     parser.add_argument("-pg", "--peak_genome", type=str, help="Genome fasta for peaks")
     parser.add_argument("-m", "--model", type=str, required=True, help="ChromBPNet model to use for variant scoring")
@@ -33,9 +33,9 @@ def fetch_scoring_args():
     return args
 
 def update_variant_summary_args(parser):
-    parser.add_argument("-sd", "--score_dir", type=str, required=True, help="Path to variant scores that will be used to generate summary")
+    parser.add_argument("-sd", "--score_dir", type=str, required=True, help="Path to directory with variant scores that will be used to generate summary")
     parser.add_argument("-sl", "--score_list",  nargs='+', required=True, help="Names of variant score files that will be used to generate summary")
-    parser.add_argument("-o", "--out_prefix", type=str, required=True, help="Path to storing the summary file average across folds; directory should already exist")
+    parser.add_argument("-o", "--out_prefix", type=str, required=True, help="Path prefix for storing the summary file with average scores across folds; directory should already exist")
     parser.add_argument("-sc", "--schema", type=str, required=True, choices=['bed', 'plink', 'plink2', 'chrombpnet', 'original'], default='chrombpnet', help="Format for the input variants list")
 
 def fetch_variant_summary_args():
@@ -46,8 +46,8 @@ def fetch_variant_summary_args():
     return args
 
 def update_variant_annotation_args(parser):
-    parser.add_argument("-l", "--list", type=str, required=True, help="TSV file containing list of variants to score")
-    parser.add_argument("-o", "--out_prefix", type=str, required=True, help="Path to storing the summary file average across folds; directory should already exist")
+    parser.add_argument("-l", "--list", type=str, required=True, help="a TSV file containing a list of variants to annotate")
+    parser.add_argument("-o", "--out_prefix", type=str, required=True, help="Path prefix for storing the annotated file; directory should already exist")
     parser.add_argument("-p", "--peaks", type=str, help="Bed file containing peak regions")
     parser.add_argument("-ge", "--genes", type=str, help="Bed file containing gene regions")
     parser.add_argument("-sc", "--schema", type=str, required=True, choices=['bed', 'plink', 'plink2', 'chrombpnet', 'original'], default='chrombpnet', help="Format for the input variants list")
