@@ -163,7 +163,8 @@ def main():
                                 shuf_allele1_pred_profiles,
                                 shuf_allele2_pred_profiles,
                                 shuf_jsd)
-                
+                                
+            shuf_logfc_jsd = shuf_logfc * shuf_jsd
             shuf_abs_logfc = np.squeeze(np.abs(shuf_logfc))
             shuf_abs_logfc_jsd = shuf_abs_logfc * shuf_jsd
 
