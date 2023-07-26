@@ -74,7 +74,7 @@ class VariantGenerator(Sequence):
 
     def __getitem__(self, idx):
         cur_entries = self.variants_table.iloc[idx*self.batch_size:min([self.num_variants,(idx+1)*self.batch_size])]
-        rsids = cur_entries['rsid'].tolist()
+        variant_ids = cur_entries['variant_id'].tolist()
 
         if self.shuf:
             allele1_seqs, allele2_seqs = zip(*[self.__get_allele_seq__(v, w, x, y, z) for v,w,x,y,z in
@@ -85,9 +85,9 @@ class VariantGenerator(Sequence):
                                              zip(cur_entries.chr, cur_entries.pos, cur_entries.allele1, cur_entries.allele2)])
 
         if self.debug_mode:
-            return rsids, list(allele1_seqs),list(allele2_seqs)
+            return variant_ids, list(allele1_seqs),list(allele2_seqs)
         else:
-            return rsids, one_hot.dna_to_one_hot(list(allele1_seqs)), one_hot.dna_to_one_hot(list(allele2_seqs))
+            return variant_ids, one_hot.dna_to_one_hot(list(allele1_seqs)), one_hot.dna_to_one_hot(list(allele2_seqs))
         
 
     def __len__(self):
