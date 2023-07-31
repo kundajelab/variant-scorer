@@ -91,7 +91,7 @@ python variant_summary_across_folds.py -sd [VARIANT_SCORE_DIR] -sl [SCORE_LIST] 
 
 This script takes a list of variants and annotates each with their closest genes and any overlaps with peaks.
 
-NOTE: This script assumes that the peaks and genes are in the same reference genome, and it does not perform any liftover operations.
+NOTE: This script assumes that the peaks and genes are in the same reference genome as the variants, and it does not perform any liftover operations.
 
 ### Usage:
 
