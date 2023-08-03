@@ -55,22 +55,50 @@ def main():
     
     for shap_type in args.shap_type:
         # fetch model prediction for variants
-        variant_ids, allele1_counts_shap, allele2_counts_shap = fetch_shap(model,
-                                                                    variants_table,
-                                                                    input_len,
-                                                                    args.genome,
-                                                                    args.batch_size,
-                                                                    debug_mode=args.debug_mode,
-                                                                    lite=args.lite,
-                                                                    bias=None,
-                                                                    shuf=False,
-                                                                    shap_type=shap_type)
+        batch_size=args.batch_size
+        output_file=h5py.File(''.join([args.out_prefix, ".variant_shap.%s.h5"%shap_type]), 'a')
+        observed = output_file.create_group('observed')
+        allele1_write = observed.create_dataset('allele1_shap', (len(variants_table),2114,4), chunks= (batch_size,2114,4),dtype=np.float16, compression='gzip', compression_opts=9)
+        allele2_write = observed.create_dataset('allele2_shap', (len(variants_table),2114,4), chunks= (batch_size,2114,4),dtype=np.float16, compression='gzip', compression_opts=9)
 
-        # store shap at variants
-        with h5py.File(''.join([args.out_prefix, ".variant_shap.%s.h5"%shap_type]), 'w') as f:
-            observed = f.create_group('observed')
-            observed.create_dataset('allele1_shap', data=allele1_counts_shap, compression='gzip', compression_opts=9)
-            observed.create_dataset('allele2_shap', data=allele2_counts_shap, compression='gzip', compression_opts=9)
+        num_batches=len(variants_table)//batch_size
+        for i in range(num_batches):
+            sub_table=variants_table[i*batch_size:(i+1)*batch_size]
+            variant_ids, allele1_counts_shap, allele2_counts_shap = fetch_shap(model,
+                                                                        sub_table,
+                                                                        input_len,
+                                                                        args.genome,
+                                                                        args.batch_size,
+                                                                        debug_mode=args.debug_mode,
+                                                                        lite=args.lite,
+                                                                        bias=None,
+                                                                        shuf=False,
+                                                                        shap_type=shap_type)
+            allele1_write[i*batch_size:(i+1)*batch_size] = allele1_counts_shap
+            allele2_write[i*batch_size:(i+1)*batch_size] = allele2_counts_shap
+
+        if len(variants_table)%batch_size != 0:
+            sub_table=variants_table[num_batches*batch_size:len(variants_table)] 
+            variant_ids, allele1_counts_shap, allele2_counts_shap = fetch_shap(model,
+                                                            sub_table,
+                                                            input_len,
+                                                            args.genome,
+                                                            args.batch_size,
+                                                            debug_mode=args.debug_mode,
+                                                            lite=args.lite,
+                                                            bias=None,
+                                                            shuf=False,
+                                                            shap_type=shap_type)
+                                                            
+            allele1_write[num_batches*batch_size:len(variants_table)] = allele1_counts_shap
+            allele2_write[num_batches*batch_size:len(variants_table)] = allele2_counts_shap
+
+
+        # # store shap at variants
+        # with h5py.File(''.join([args.out_prefix, ".variant_shap.%s.h5"%shap_type]), 'w') as f:
+        #     observed = f.create_group('observed')
+        #     observed.create_dataset('allele1_shap', data=allele1_counts_shap, compression='gzip', compression_opts=9)
+        #     observed.create_dataset('allele2_shap', data=allele2_counts_shap, compression='gzip', compression_opts=9)
 
     print("DONE")
 
