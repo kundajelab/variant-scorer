@@ -51,15 +51,15 @@ def main():
     variants_table = variants_table.loc[variants_table.apply(lambda x: get_valid_variants(x.chr, x.pos, x.allele1, x.allele2, input_len, chrom_sizes_dict), axis=1)]
     variants_table.reset_index(drop=True, inplace=True)
     print(variants_table.shape)
-
     
     for shap_type in args.shap_type:
         # fetch model prediction for variants
         batch_size=args.batch_size
-        output_file=h5py.File(''.join([args.out_prefix, ".variant_shap.%s.h5"%shap_type]), 'a')
+        output_file=h5py.File(''.join([args.out_prefix, ".variant_shap.%s.h5"%shap_type]), 'w')
         observed = output_file.create_group('observed')
-        allele1_write = observed.create_dataset('allele1_shap', (len(variants_table),2114,4), chunks= (batch_size,2114,4),dtype=np.float16, compression='gzip', compression_opts=9)
-        allele2_write = observed.create_dataset('allele2_shap', (len(variants_table),2114,4), chunks= (batch_size,2114,4),dtype=np.float16, compression='gzip', compression_opts=9)
+        allele1_write = observed.create_dataset('allele1_shap', (len(variants_table),2114,4), chunks=(batch_size,2114,4), dtype=np.float16, compression='gzip', compression_opts=9)
+        allele2_write = observed.create_dataset('allele2_shap', (len(variants_table),2114,4), chunks=(batch_size,2114,4), dtype=np.float16, compression='gzip', compression_opts=9)
+        variant_ids_write = observed.create_dataset('variant_ids', (len(variants_table),2114,4), chunks=(batch_size,2114,4), dtype=np.str_, compression='gzip', compression_opts=9)
 
         num_batches=len(variants_table)//batch_size
         for i in range(num_batches):
@@ -76,6 +76,7 @@ def main():
                                                                         shap_type=shap_type)
             allele1_write[i*batch_size:(i+1)*batch_size] = allele1_counts_shap
             allele2_write[i*batch_size:(i+1)*batch_size] = allele2_counts_shap
+            variant_ids_write[i*batch_size:(i+1)*batch_size] = variant_ids
 
         if len(variants_table)%batch_size != 0:
             sub_table=variants_table[num_batches*batch_size:len(variants_table)] 
@@ -92,6 +93,7 @@ def main():
                                                             
             allele1_write[num_batches*batch_size:len(variants_table)] = allele1_counts_shap
             allele2_write[num_batches*batch_size:len(variants_table)] = allele2_counts_shap
+            variant_ids_write[num_batches*batch_size:len(variants_table)] = variant_ids
 
 
         # # store shap at variants
