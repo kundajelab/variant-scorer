@@ -59,7 +59,7 @@ def main():
         observed = output_file.create_group('observed')
         allele1_write = observed.create_dataset('allele1_shap', (len(variants_table),2114,4), chunks=(batch_size,2114,4), dtype=np.float16, compression='gzip', compression_opts=9)
         allele2_write = observed.create_dataset('allele2_shap', (len(variants_table),2114,4), chunks=(batch_size,2114,4), dtype=np.float16, compression='gzip', compression_opts=9)
-        variant_ids_write = observed.create_dataset('variant_ids', (len(variants_table),1), chunks=(batch_size,1), dtype='S10', compression='gzip', compression_opts=9)
+        variant_ids_write = observed.create_dataset('variant_ids', (len(variants_table),1), chunks=(batch_size,), dtype='S10', compression='gzip', compression_opts=9)
 
         num_batches=len(variants_table)//batch_size
         for i in range(num_batches):
