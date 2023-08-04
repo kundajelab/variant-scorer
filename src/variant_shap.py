@@ -59,7 +59,7 @@ def main():
         observed = output_file.create_group('observed')
         allele1_write = observed.create_dataset('allele1_shap', (len(variants_table),2114,4), chunks=(batch_size,2114,4), dtype=np.float16, compression='gzip', compression_opts=9)
         allele2_write = observed.create_dataset('allele2_shap', (len(variants_table),2114,4), chunks=(batch_size,2114,4), dtype=np.float16, compression='gzip', compression_opts=9)
-        variant_ids_write = observed.create_dataset('variant_ids', (len(variants_table),), chunks=(batch_size,), dtype='S10', compression='gzip', compression_opts=9)
+        variant_ids_write = observed.create_dataset('variant_ids', (len(variants_table),), chunks=(batch_size,), dtype='S100', compression='gzip', compression_opts=9)
 
         num_batches=len(variants_table)//batch_size
         for i in range(num_batches):
@@ -76,7 +76,7 @@ def main():
                                                                         shap_type=shap_type)
             allele1_write[i*batch_size:(i+1)*batch_size] = allele1_counts_shap
             allele2_write[i*batch_size:(i+1)*batch_size] = allele2_counts_shap
-            variant_ids_write[i*batch_size:(i+1)*batch_size] = variant_ids
+            variant_ids_write[i*batch_size:(i+1)*batch_size] = [s.encode("utf-8") for s in variant_ids]
 
         if len(variants_table)%batch_size != 0:
             sub_table=variants_table[num_batches*batch_size:len(variants_table)] 
@@ -93,8 +93,7 @@ def main():
                                                             
             allele1_write[num_batches*batch_size:len(variants_table)] = allele1_counts_shap
             allele2_write[num_batches*batch_size:len(variants_table)] = allele2_counts_shap
-            variant_ids_write[num_batches*batch_size:len(variants_table)] = variant_ids
-
+            variant_ids_write[num_batches*batch_size:len(variants_table)] = [s.encode("utf-8") for s in variant_ids]
 
         # # store shap at variants
         # with h5py.File(''.join([args.out_prefix, ".variant_shap.%s.h5"%shap_type]), 'w') as f:
