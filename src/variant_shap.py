@@ -19,7 +19,7 @@ tf.compat.v1.disable_v2_behavior()
 
 
 def main():
-    args = argmanager.fetch_scoring_args()
+    args = argmanager.fetch_shap_args()
     print(args)
 
     out_dir = os.path.sep.join(args.out_prefix.split(os.path.sep)[:-1])
@@ -57,7 +57,7 @@ def main():
         batch_size=args.batch_size
         ### set the batch size to the length of variant table in case variant table is small to avoid error
         batch_size=min(batch_size,len(variants_table))
-	output_file=h5py.File(''.join([args.out_prefix, ".variant_shap.%s.h5"%shap_type]), 'w')
+        output_file=h5py.File(''.join([args.out_prefix, ".variant_shap.%s.h5"%shap_type]), 'w')
         observed = output_file.create_group('observed')
         allele1_write = observed.create_dataset('allele1_shap', (len(variants_table),2114,4), chunks=(batch_size,2114,4), dtype=np.float16, compression='gzip', compression_opts=9)
         allele2_write = observed.create_dataset('allele2_shap', (len(variants_table),2114,4), chunks=(batch_size,2114,4), dtype=np.float16, compression='gzip', compression_opts=9)
