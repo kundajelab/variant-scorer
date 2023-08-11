@@ -222,8 +222,8 @@ def get_variant_scores_with_peaks(allele1_pred_counts, allele2_pred_counts,
 
     logfc, jsd = get_variant_scores(allele1_pred_counts, allele2_pred_counts,
                                     allele1_pred_profiles, allele2_pred_profiles)
-    allele1_percentile = np.array([np.mean(pred_counts < x) for x in allele1_pred_counts])
-    allele2_percentile = np.array([np.mean(pred_counts < x) for x in allele2_pred_counts])
+    allele1_percentile = np.array([np.max([np.mean(pred_counts < x), (1/len(pred_counts))]) for x in allele1_pred_counts])
+    allele2_percentile = np.array([np.max([np.mean(pred_counts < x), (1/len(pred_counts))]) for x in allele2_pred_counts])
 
     return logfc, jsd, allele1_percentile, allele2_percentile
 
