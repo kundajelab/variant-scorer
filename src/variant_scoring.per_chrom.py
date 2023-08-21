@@ -57,6 +57,18 @@ def main():
     shuf_variants_table = create_shuffle_table(variants_table,args.random_seed, args.total_shuf, args.num_shuf)
     print("Shuffled variants table shape:", shuf_variants_table.shape)
 
+    shuf_max_percentile = None
+    shuf_percentile_change = None
+    shuf_abs_percentile_change = None
+    shuf_abs_logfc = None
+    shuf_logfc_jsd = None
+    shuf_abs_logfc_jsd = None
+    shuf_logfc_max_percentile = None
+    shuf_abs_logfc_max_percentile = None
+    shuf_jsd_max_percentile = None
+    shuf_logfc_jsd_max_percentile = None
+    shuf_abs_logfc_jsd_max_percentile = None
+
     if len(shuf_variants_table) > 0:
         if args.debug_mode:
             shuf_variants_table = shuf_variants_table.sample(10000, random_state=args.random_seed, ignore_index=True)
