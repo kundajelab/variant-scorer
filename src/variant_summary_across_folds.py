@@ -30,7 +30,7 @@ def main():
 
     for score in ["logfc", "abs_logfc", "jsd", "logfc_x_jsd", "abs_logfc_x_jsd",
                   "logfc_x_max_percentile", "abs_logfc_x_max_percentile", "jsd_x_max_percentile",
-                  "logfc_x_jsd_max_percentile", "abs_logfc_x_jsd_x_max_percentile"]:
+                  "logfc_x_jsd_x_max_percentile", "abs_logfc_x_jsd_x_max_percentile"]:
         if score in score_dict[0]:
             variant_scores.loc[:, (score + '.mean')] = np.mean(np.array([score_dict[fold][score].tolist()
                                                                     for fold in score_dict]), axis=0)
