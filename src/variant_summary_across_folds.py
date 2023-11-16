@@ -28,7 +28,7 @@ def main():
         assert score_dict[i]['allele2'].tolist() == variant_scores['allele2'].tolist()
         assert score_dict[i]['variant_id'].tolist() == variant_scores['variant_id'].tolist()
 
-    for score in ["logfc", "abs_logfc", "jsd", "logfc_x_jsd", "abs_logfc_x_jsd",
+    for score in ["logfc", "abs_logfc", "jsd", "logfc_x_jsd", "abs_logfc_x_jsd", "max_percentile",
                   "logfc_x_max_percentile", "abs_logfc_x_max_percentile", "jsd_x_max_percentile",
                   "logfc_x_jsd_x_max_percentile", "abs_logfc_x_jsd_x_max_percentile"]:
         if score in score_dict[0]:
