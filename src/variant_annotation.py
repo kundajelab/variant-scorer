@@ -34,8 +34,8 @@ def main():
                                      sep="\t",\
                                      header=None,\
                                      index=False)
-    
-    
+
+
     if args.genes:
 
         print("annotating with closest genes")
@@ -73,7 +73,11 @@ def main():
         closest_gene_df['closest_gene_3'] = closest_gene_df['variant_id'].apply(lambda x: closest_genes[x][2] if len(closest_genes[x]) > 2 else '.')
         closest_gene_df['gene_distance_3'] = closest_gene_df['variant_id'].apply(lambda x: gene_dists[x][2] if len(closest_genes[x]) > 2 else '.')
 
-        variant_scores = variant_scores.merge(closest_gene_df, on='variant_id', how='inner')
+        closest_gene_df = closest_gene_df[['variant_id', 'closest_gene_1', 'gene_distance_1',
+                                           'closest_gene_2', 'gene_distance_2',
+                                           'closest_gene_3', 'gene_distance_3']]
+        closest_gene_df.drop_duplicates(inplace=True)
+        variant_scores = variant_scores.merge(closest_gene_df, on='variant_id', how='left')
 
     if args.peaks:
 
@@ -82,7 +86,7 @@ def main():
         peak_bedtools_intersect_cmd = "bedtools intersect -wa -u -a %s -b %s > %s"%(tmp_bed_file_path, peak_path, peak_intersect_path)
         _ = subprocess.call(peak_bedtools_intersect_cmd,\
                             shell=True)
-        
+
         peak_intersect_df = pd.read_table(peak_intersect_path, header=None)
         os.remove(peak_intersect_path)
 
