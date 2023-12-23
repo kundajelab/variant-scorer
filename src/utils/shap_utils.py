@@ -101,11 +101,14 @@ def get_weightedsum_meannormed_logits(model):
 
 
 def fetch_shap(model, variants_table, input_len, genome_fasta, batch_size, debug_mode=False, lite=False, bias=None, shuf=False,shap_type="counts"):
-    rsids = []
+    variant_ids = []
     allele1_counts_shap = []
     allele2_counts_shap = []
     allele1_profile_shap = []
     allele2_profile_shap = []
+    allele1_inputs = []
+    allele2_inputs = []
+
     # variant sequence generator
     var_gen = VariantGenerator(variants_table=variants_table,
                            input_len=input_len,
@@ -116,7 +119,7 @@ def fetch_shap(model, variants_table, input_len, genome_fasta, batch_size, debug
 
     for i in tqdm(range(len(var_gen))):
 
-        batch_rsids, allele1_seqs, allele2_seqs = var_gen[i]
+        batch_variant_ids, allele1_seqs, allele2_seqs = var_gen[i]
 
         if lite:
             if shap_type == "counts":
@@ -181,11 +184,14 @@ def fetch_shap(model, variants_table, input_len, genome_fasta, batch_size, debug
                 allele2_counts_shap_batch = profile_model_counts_explainer.shap_values(
                     allele2_input, progress_message=10)
 
-                allele1_counts_shap_batch = allele1_counts_shap_batch * allele1_input
-                allele2_counts_shap_batch = allele2_counts_shap_batch * allele2_input
+                # allele1_counts_shap_batch = allele1_counts_shap_batch * allele1_input
+                # allele2_counts_shap_batch = allele2_counts_shap_batch * allele2_input
 
                 allele1_counts_shap.extend(allele1_counts_shap_batch)
                 allele2_counts_shap.extend(allele2_counts_shap_batch)
+
+                allele1_inputs.extend(allele1_input)
+                allele2_inputs.extend(allele2_input)
 
             else:
                 assert shap_type == "profile"
@@ -201,15 +207,20 @@ def fetch_shap(model, variants_table, input_len, genome_fasta, batch_size, debug
                 allele2_profile_shap_batch = profile_model_profile_explainer.shap_values(
                     allele2_input, progress_message=10) 
 
-                allele1_profile_shap_batch = allele1_profile_shap_batch * allele1_input
-                allele2_profile_shap_batch = allele2_profile_shap_batch * allele2_input
+                # allele1_profile_shap_batch = allele1_profile_shap_batch * allele1_input
+                # allele2_profile_shap_batch = allele2_profile_shap_batch * allele2_input
 
                 allele1_profile_shap.extend(allele1_profile_shap_batch)
                 allele2_profile_shap.extend(allele2_profile_shap_batch)
 
-        rsids.extend(batch_rsids)
+                allele1_inputs.extend(allele1_input)
+                allele2_inputs.extend(allele2_input)
+
+        variant_ids.extend(batch_variant_ids)
 
     if shap_type == "counts":
-        return np.array(rsids), np.array(allele1_counts_shap), np.array(allele2_counts_shap)
+        return np.array(variant_ids), np.array(allele1_inputs), np.array(allele2_inputs), \
+               np.array(allele1_counts_shap), np.array(allele2_counts_shap)
     else:
-        return np.array(rsids), np.array(allele1_profile_shap), np.array(allele2_profile_shap)
+        return np.array(variant_ids), np.array(allele1_inputs), np.array(allele2_inputs), \
+               np.array(allele1_profile_shap), np.array(allele2_profile_shap)
