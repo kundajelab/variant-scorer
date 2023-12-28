@@ -73,7 +73,7 @@ def main():
         num_batches=len(variants_table)//batch_size
         for i in range(num_batches):
             sub_table=variants_table[i*batch_size:(i+1)*batch_size]
-            variant_ids, allele1_inputs, allele2_inputs, \
+            var_ids, allele1_inputs, allele2_inputs, \
             allele1_shap, allele2_shap = fetch_shap(model,
                                                     sub_table,
                                                     input_len,
@@ -87,17 +87,24 @@ def main():
             
             # allele1_write[i*batch_size:(i+1)*batch_size] = allele1_shap
             # allele2_write[i*batch_size:(i+1)*batch_size] = allele2_shap
-            # variant_ids_write[i*batch_size:(i+1)*batch_size] = [s.encode("utf-8") for s in variant_ids]
+            # variant_ids_write[i*batch_size:(i+1)*batch_size] = [s.encode("utf-8") for s in var_ids]
 
-            allele1_seqs.extend(allele1_inputs)
-            allele2_seqs.extend(allele2_inputs)
-            allele1_scores.extend(allele1_shap)
-            allele2_scores.extend(allele2_shap)
-            variant_ids.extend(variant_ids)
+            if len(variant_ids) == 0:
+                allele1_seqs = allele1_inputs
+                allele2_seqs = allele2_inputs
+                allele1_scores = allele1_shap
+                allele2_scores = allele2_shap
+                variant_ids = var_ids
+            else:
+                allele1_seqs.np.concatenate((allele1_seqs, allele1_inputs))
+                allele2_seqs.np.concatenate((allele2_seqs, allele2_inputs))
+                allele1_scores.np.concatenate((allele1_scores, allele1_shap))
+                allele2_scores.np.concatenate((allele2_scores, allele2_shap))
+                variant_ids.np.concatenate((variant_ids, var_ids))
 
         if len(variants_table)%batch_size != 0:
-            sub_table=variants_table[num_batches*batch_size:len(variants_table)] 
-            variant_ids, allele1_inputs, allele2_inputs, \
+            sub_table=variants_table[num_batches*batch_size:len(variants_table)]
+            var_ids, allele1_inputs, allele2_inputs, \
             allele1_shap, allele2_shap = fetch_shap(model,
                                                                     sub_table,
                                                                     input_len,
@@ -111,13 +118,20 @@ def main():
             
             # allele1_write[num_batches*batch_size:len(variants_table)] = allele1_shap
             # allele2_write[num_batches*batch_size:len(variants_table)] = allele2_shap
-            # variant_ids_write[num_batches*batch_size:len(variants_table)] = [s.encode("utf-8") for s in variant_ids]
+            # variant_ids_write[num_batches*batch_size:len(variants_table)] = [s.encode("utf-8") for s in var_ids]
 
-            allele1_seqs.extend(allele1_inputs)
-            allele2_seqs.extend(allele2_inputs)
-            allele1_scores.extend(allele1_shap)
-            allele2_scores.extend(allele2_shap)
-            variant_ids.extend(variant_ids)
+            if len(variant_ids) == 0:
+                allele1_seqs = allele1_inputs
+                allele2_seqs = allele2_inputs
+                allele1_scores = allele1_shap
+                allele2_scores = allele2_shap
+                variant_ids = var_ids
+            else:
+                allele1_seqs.np.concatenate((allele1_seqs, allele1_inputs))
+                allele2_seqs.np.concatenate((allele2_seqs, allele2_inputs))
+                allele1_scores.np.concatenate((allele1_scores, allele1_shap))
+                allele2_scores.np.concatenate((allele2_scores, allele2_shap))
+                variant_ids.np.concatenate((variant_ids, var_ids))
 
         # # store shap at variants
         # with h5py.File(''.join([args.out_prefix, ".variant_shap.%s.h5"%shap_type]), 'w') as f:
