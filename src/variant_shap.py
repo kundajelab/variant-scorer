@@ -154,8 +154,8 @@ def main():
             'projected_shap': {'seq': np.concatenate((np.transpose(allele1_seqs * allele1_scores, (0, 2, 1)).astype(np.float16),
                                                       np.transpose(allele2_seqs * allele2_scores, (0, 2, 1)).astype(np.float16)))},
             'variant_ids': np.concatenate((np.array(variant_ids), np.array(variant_ids))),
-            'alleles': np.concatenate((np.array([0 * len(variant_ids)]),
-                                       np.array([1 * len(variant_ids)])))}
+            'alleles': np.concatenate((np.array([0] * len(variant_ids)),
+                                       np.array([1] * len(variant_ids))))}
 
         dd.io.save(''.join([args.out_prefix, ".variant_shap.%s.h5"%shap_type]),
                    shap_dict,
