@@ -1,0 +1,21 @@
+[project]
+name = "varscore"
+requires-python = ">= 3.8"
+version = "0.0.1"
+authors = [
+	{ name = "Soumya Kundu", email = "soumyak@stanford.edu" },
+	{ name = "Ivy Evergreen", email = "mail@virtual.gf" },
+]
+description = "Obtains annotations for genetic variants."
+readme = "README.md"
+license = {text = "MIT License"}
+dependencies = [
+	"pandas",
+]
+
+[project.scripts]
+varscore = "main:cli"
+
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
