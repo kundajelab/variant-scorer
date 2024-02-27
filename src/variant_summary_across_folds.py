@@ -6,8 +6,9 @@ from utils.argmanager import *
 from utils.helpers import *
 
 
-def main():
-    args = fetch_variant_summary_args()
+def main(args = None):
+    if args is None:
+        args = fetch_variant_summary_args()
     print(args)
     variant_score_dir = args.score_dir
     variant_table_list = args.score_list

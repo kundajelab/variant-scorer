@@ -86,19 +86,15 @@ def fetch_main_parser():
 
     scoring_parser = subparsers.add_parser('score', help='Score a list of variants using a model.')
     update_scoring_args(scoring_parser)
-    scoring_parser.set_defaults(func=fetch_scoring_args)
 
     shap_parser = subparsers.add_parser('shap', help='Calculate SHAP scores using a model.')
     update_shap_args(shap_parser)
-    shap_parser.set_defaults(func=fetch_shap_args)
 
     summary_parser = subparsers.add_parser('summary', help='Generate a summary file combining scores from multiple folds.')
     update_variant_summary_args(summary_parser)
-    summary_parser.set_defaults(func=fetch_variant_summary_args)
 
     annotation_parser = subparsers.add_parser('annotate', help='Generate annotations for a list of variants.')
     update_variant_annotation_args(annotation_parser)
-    annotation_parser.set_defaults(func=fetch_variant_annotation_args)
 
     # Check if a subcommand has been provided; if not, print help and exit
     if len(sys.argv) == 1:

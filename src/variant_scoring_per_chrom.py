@@ -15,8 +15,9 @@ from utils import argmanager, losses
 from utils.helpers import *
 
 
-def main():
-    args = argmanager.fetch_scoring_args()
+def main(args = None):
+    if args is None:
+        args = argmanager.fetch_scoring_args()
     print(args)
 
     np.random.seed(args.random_seed)

@@ -7,8 +7,9 @@ from utils.argmanager import *
 from utils.helpers import *
 
 
-def main():
-    args = fetch_variant_annotation_args()
+def main(args = None):
+    if args is None:
+        args = fetch_variant_annotation_args()
     print(args)
     variant_scores_file = args.list
     output_prefix = args.out_prefix

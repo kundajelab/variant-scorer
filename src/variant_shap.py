@@ -19,8 +19,9 @@ import deepdish as dd
 tf.compat.v1.disable_v2_behavior()
 
 
-def main():
-    args = argmanager.fetch_shap_args()
+def main(args = None):
+    if args is None:
+        args = argmanager.fetch_shap_args()
     print(args)
 
     out_dir = os.path.sep.join(args.out_prefix.split(os.path.sep)[:-1])
