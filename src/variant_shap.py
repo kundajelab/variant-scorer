@@ -29,7 +29,7 @@ def main(args = None):
     print('out_dir:', out_dir)
     print()
     if not os.path.exists(out_dir):
-        raise OSError("Output directory does not exist")
+        raise OSError(f"Output directory ({out_dir}) does not exist")
 
     model = load_model_wrapper(args.model)
     variants_table = load_variant_table(args.list, args.schema)

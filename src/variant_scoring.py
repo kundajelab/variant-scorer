@@ -26,7 +26,7 @@ def main(args = None):
     
     out_dir = os.path.sep.join(args.out_prefix.split(os.path.sep)[:-1])
     if not os.path.exists(out_dir):
-        raise OSError("Output directory does not exist")
+        raise OSError(f"Output directory ({out_dir}) does not exist")
 
     # load the model and variants
     model = load_model_wrapper(args.model)
