@@ -60,7 +60,7 @@ def parse_hit_calls(args):
 	if args.variant_file is not None:
 		variant_hits['allele'] = variant_hits['peak_id'].apply(lambda x: "allele2" if x > len(variant_table) else "allele1")
 	else:
-		variant_hits['allele'] - "N/A"
+		variant_hits['allele'] = "N/A"
 	variant_out_final = variant_hits[["peak_id", "chr", "start", "end", "motif_name", "allele",
 								   	  "variant_loc", "hit_coefficient", "hit_correlation", "hit_importance"]]
 	return variant_out_final
