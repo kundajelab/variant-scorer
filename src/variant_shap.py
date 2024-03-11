@@ -96,11 +96,11 @@ def main():
                 allele2_scores = allele2_shap
                 variant_ids = var_ids
             else:
-                allele1_seqs.np.concatenate((allele1_seqs, allele1_inputs))
-                allele2_seqs.np.concatenate((allele2_seqs, allele2_inputs))
-                allele1_scores.np.concatenate((allele1_scores, allele1_shap))
-                allele2_scores.np.concatenate((allele2_scores, allele2_shap))
-                variant_ids.np.concatenate((variant_ids, var_ids))
+                allele1_seqs = np.concatenate((allele1_seqs, allele1_inputs))
+                allele2_seqs = np.concatenate((allele2_seqs, allele2_inputs))
+                allele1_scores = np.concatenate((allele1_scores, allele1_shap))
+                allele2_scores = np.concatenate((allele2_scores, allele2_shap))
+                variant_ids = np.concatenate((variant_ids, var_ids))
 
         if len(variants_table)%batch_size != 0:
             sub_table=variants_table[num_batches*batch_size:len(variants_table)]
@@ -127,11 +127,11 @@ def main():
                 allele2_scores = allele2_shap
                 variant_ids = var_ids
             else:
-                allele1_seqs.np.concatenate((allele1_seqs, allele1_inputs))
-                allele2_seqs.np.concatenate((allele2_seqs, allele2_inputs))
-                allele1_scores.np.concatenate((allele1_scores, allele1_shap))
-                allele2_scores.np.concatenate((allele2_scores, allele2_shap))
-                variant_ids.np.concatenate((variant_ids, var_ids))
+                allele1_seqs = np.concatenate((allele1_seqs, allele1_inputs))
+                allele2_seqs = np.concatenate((allele2_seqs, allele2_inputs))
+                allele1_scores = np.concatenate((allele1_scores, allele1_shap))
+                allele2_scores = np.concatenate((allele2_scores, allele2_shap))
+                variant_ids = np.concatenate((variant_ids, var_ids))
 
         # # store shap at variants
         # with h5py.File(''.join([args.out_prefix, ".variant_shap.%s.h5"%shap_type]), 'w') as f:
