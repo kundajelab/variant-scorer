@@ -57,7 +57,10 @@ def parse_hit_calls(args):
 	print()
 	print(variant_hits.head())
 	variant_hits = variant_hits.sort_values(["peak_id", "inv_coeff"]).groupby("peak_id").head(args.hits_per_loc)
-	variant_hits['allele'] = variant_hits['peak_id'].apply(lambda x: "allele2" if x > len(variant_table) else "allele1")
+	if args.variant_file is not None:
+		variant_hits['allele'] = variant_hits['peak_id'].apply(lambda x: "allele2" if x > len(variant_table) else "allele1")
+	else:
+		variant_hits['allele'] = "N/A"
 	variant_out_final = variant_hits[["peak_id", "chr", "start", "end", "motif_name", "allele",
 								   	  "variant_loc", "hit_coefficient", "hit_correlation", "hit_importance"]]
 	return variant_out_final
