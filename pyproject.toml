@@ -1,6 +1,6 @@
 [project]
 name = "varscore"
-requires-python = ">= 3.8"
+requires-python = "== 3.8"
 version = "0.0.1"
 authors = [
 	{ name = "Soumya Kundu", email = "soumyak@stanford.edu" },
@@ -8,9 +8,14 @@ authors = [
 ]
 description = "Obtains annotations for genetic variants."
 readme = "README.md"
-license = {text = "MIT License"}
+license = { text = "MIT License" }
 dependencies = [
-	"pandas",
+	"deepdish==0.3.7",
+	"h5py==3.9.0",
+	"numpy==1.24.4",
+	"pandas==2.0.3",
+	"scipy==1.10.1",
+	"tensorflow==2.8.0",
 ]
 
 [project.scripts]
