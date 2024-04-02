@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 import subprocess
+import logging
 
 from utils.argmanager import *
 from utils.helpers import *
@@ -10,8 +11,13 @@ from utils.helpers import *
 DEFAULT_CLOSEST_GENE_COUNT = 3
 
 def main(args = None):
+
     if args is None:
         args = fetch_variant_annotation_args()
+
+    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
+                        format='%(asctime)s - %(levelname)s - %(message)s')
+
     variant_scores_file = args.list
     output_prefix = args.out_prefix
     peak_path = args.peaks
@@ -25,7 +31,6 @@ def main(args = None):
             variant_scores['pos'] = variant_scores['pos'] - 1
         variant_scores_bed_format = variant_scores[['chr','pos','end','allele1','allele2','variant_id']].copy()
     else:
-        ### convert to bed format
         variant_scores_bed_format = variant_scores[['chr','pos','allele1','allele2','variant_id']].copy()
         variant_scores_bed_format['pos']  = variant_scores_bed_format.apply(lambda x: int(x.pos)-1, axis = 1)
         variant_scores_bed_format['end']  = variant_scores_bed_format.apply(lambda x: int(x.pos)+len(x.allele1), axis = 1)
@@ -37,10 +42,9 @@ def main(args = None):
                                      header=None,\
                                      index=False)
 
-
     if args.closest_genes:
 
-        print("annotating with closest genes")
+        logging.info("Annotating with closest genes")
         closest_gene_count = args.closest_gene_count if args.closest_gene_count else DEFAULT_CLOSEST_GENE_COUNT
         closest_gene_path = "%s.closest_genes.bed"%output_prefix
         gene_bedtools_intersect_cmd = f"bedtools closest -d -t first -k {closest_gene_count} -a {tmp_bed_file_path} -b {tss_path} > {closest_gene_path}"
@@ -50,10 +54,7 @@ def main(args = None):
         closest_gene_df = pd.read_table(closest_gene_path, header=None)
         os.remove(closest_gene_path)
 
-        print()
-        print(closest_gene_df.head())
-        print("Closest genes table shape:", closest_gene_df.shape)
-        print()
+        logging.debug(f"Closest genes table:\n{closest_gene_df.shape}\n{closest_gene_df.head()}")
 
         closest_genes = {}
         gene_dists = {}
@@ -77,7 +78,7 @@ def main(args = None):
 
     if args.peaks:
 
-        print("annotating with peak overlap")
+        logging.info("Annotating with peak overlap")
         peak_intersect_path = "%s.peak_overlap.bed"%output_prefix
         peak_bedtools_intersect_cmd = "bedtools intersect -wa -u -a %s -b %s > %s"%(tmp_bed_file_path, peak_path, peak_intersect_path)
         _ = subprocess.call(peak_bedtools_intersect_cmd,\
@@ -86,14 +87,12 @@ def main(args = None):
         peak_intersect_df = pd.read_table(peak_intersect_path, header=None)
         os.remove(peak_intersect_path)
 
-        print()
-        print(peak_intersect_df.head())
-        print("Peak overlap table shape:", peak_intersect_df.shape)
-        print()
+        logging.debug(f"Peak overlap table:\n{peak_intersect_df.shape}\n{peak_intersect_df.head()}")
 
         variant_scores['peak_overlap'] = variant_scores['variant_id'].isin(peak_intersect_df[5].tolist())
 
     if args.r2:
+        logging.info("Annotating with r2")
         r2_ld_filepath = args.r2
 
         r2_tsv_filepath = "/tmp/r2.tsv"
@@ -108,17 +107,13 @@ def main(args = None):
             
         with open(r2_tsv_filepath, 'r') as r2_tsv_file:
             plink_variants = pd.read_table(r2_tsv_file)
-            print("plink_variants:")
-            print(plink_variants.head())
-            print(plink_variants.shape)
+            logging.debug(f"Plink variants table:\n{plink_variants.shape}\n{plink_variants.head()}")
 
             # Get just the lead variants, which is provided by the user.
             lead_variants = variant_scores[['chr', 'pos', 'variant_id']].copy()
             lead_variants['r2'] = 1.0
             lead_variants['lead_variant'] = lead_variants['variant_id']
-            print("lead_variants:")
-            print(lead_variants.head())
-            print(lead_variants.shape)
+            logging.debug(f"Lead variants table:\n{lead_variants.head()}\n{lead_variants.shape}")
 
             # Get just the ld variants.
             plink_ld_variants = plink_variants[['SNP_A','CHR_B','BP_B','SNP_B','R2']].copy()
@@ -126,37 +121,27 @@ def main(args = None):
             plink_ld_variants = plink_ld_variants[['chr', 'pos', 'variant_id', 'r2', 'lead_variant']]
             plink_ld_variants['chr'] = 'chr' + plink_ld_variants['chr'].astype(str)
             plink_ld_variants = plink_ld_variants.sort_values(by=['variant_id', 'r2'], ascending=False).drop_duplicates(subset='variant_id')
-            print("plink_ld_variants:")
-            print(plink_ld_variants.head())
-            print(plink_ld_variants.shape)
+            logging.debug(f"Plink LD variants table:\n{plink_ld_variants.shape}\n{plink_ld_variants.head()}")
 
             all_plink_variants = pd.concat([lead_variants, plink_ld_variants])
             all_plink_variants = all_plink_variants[['variant_id', 'r2', 'lead_variant']]
             all_plink_variants = all_plink_variants.sort_values( by=['variant_id', 'r2'], ascending=False)
-            print("all_plink_variants:")
-            print(all_plink_variants.head())
-            print(all_plink_variants.shape)
+            logging.debug(f"All plink variants table:\n{all_plink_variants.shape}\n{all_plink_variants.head()}")
 
             variant_scores = variant_scores.merge(all_plink_variants,
                 on=['variant_id'],
                 how='left')
 
-
     os.remove(tmp_bed_file_path)
 
-    print()
-    print(variant_scores.head())
-    print("Annotation table shape:", variant_scores.shape)
-    print()
+    logging.info(f"Final annotation table:\n{variant_scores.shape}\n{variant_scores.head()}")
 
     out_file = output_prefix + ".annotations.tsv"
-
     variant_scores.to_csv(out_file,\
                           sep="\t",\
                           index=False)
-    print("Output written to:", out_file)
 
-    print("DONE")
+    logging.info(f"Completed! Annotations written to: {out_file}")
 
 
 if __name__ == "__main__":

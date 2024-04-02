@@ -74,7 +74,7 @@ def update_variant_annotation_args(parser):
     parser.add_argument("-gc", "--closest-gene-count", type=int, help="Changes the number of closest genes (using the -g flag) annotated to the specified number.")
     parser.add_argument("-r2", "--r2", type=str, help="Adds r2 annotations. Requires a PLINK .ld file.")
     parser.add_argument("-sc", "--schema", type=str, required=True, choices=['bed', 'plink', 'plink2', 'chrombpnet', 'original'], default='chrombpnet', help="Format for the input variants list.")
-    parser.add_argument("-v", "--verbose", help="Enable debug mode", action="store_true")
+    parser.add_argument("-v", "--verbose", help="Enable detailed logging.", action="store_true")
 
 def fetch_variant_annotation_args():
     parser = argparse.ArgumentParser()
