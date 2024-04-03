@@ -3,17 +3,67 @@ import numpy as np
 import os
 import subprocess
 import logging
+from multiprocessing import Pool
 
 from utils.argmanager import *
 from utils.helpers import *
 
 
 DEFAULT_CLOSEST_GENE_COUNT = 3
+DEFAULT_THREADS = 4
+
+def get_asb_adastra(chunk, sig_adastra_tf, sig_adastra_celltype):
+    mean_asb_es_tf_ref = []
+    mean_asb_es_tf_alt = []
+    asb_tfs = []
+
+    mean_asb_es_celltype_ref = []
+    mean_asb_es_celltype_alt = []
+    asb_celltypes = []
+
+    for index,row in chunk.iterrows():
+        if index % 1000 == 0:
+            print(index)
+
+        local_tf_df = sig_adastra_tf.loc[sig_adastra_tf['variant_id'] == row['variant_id']].copy()
+        if len(local_tf_df) > 0:
+            mean_asb_es_tf_ref.append(local_tf_df['es_mean_ref'].mean())
+            mean_asb_es_tf_alt.append(local_tf_df['es_mean_alt'].mean())
+            asb_tfs.append(', '.join(local_tf_df['tf'].unique().tolist()))
+        else:
+            mean_asb_es_tf_ref.append(np.nan)
+            mean_asb_es_tf_alt.append(np.nan)
+            asb_tfs.append(np.nan)
+
+        local_celltype_df = sig_adastra_celltype.loc[sig_adastra_celltype['variant_id'] == row['variant_id']].copy()
+        if len(local_celltype_df) > 0:
+            mean_asb_es_celltype_ref.append(local_celltype_df['es_mean_ref'].mean())
+            mean_asb_es_celltype_alt.append(local_celltype_df['es_mean_alt'].mean())
+            asb_celltypes.append(', '.join(local_celltype_df['celltype'].unique().tolist()))
+        else:
+            mean_asb_es_celltype_ref.append(np.nan)
+            mean_asb_es_celltype_alt.append(np.nan)
+            asb_celltypes.append(np.nan)
+            
+    chunk['adastra_asb_tfs'] = asb_tfs
+    chunk['adastra_mean_asb_effect_size_tf_ref'] = mean_asb_es_tf_ref
+    chunk['adastra_mean_asb_effect_size_tf_alt'] = mean_asb_es_tf_alt
+    chunk['adastra_asb_celltypes'] = asb_celltypes
+    chunk['adastra_mean_asb_effect_size_celltype_ref'] = mean_asb_es_celltype_ref
+    chunk['adastra_mean_asb_effect_size_celltype_alt'] = mean_asb_es_celltype_alt
+    
+    return chunk
 
 def main(args = None):
 
     if args is None:
         args = fetch_variant_annotation_args()
+
+    if args.add_adastra:
+        if not args.add_adastra_tf:
+            raise ValueError("ADASTRA TF file (-aatf) is required for ADASTRA annotation")    
+        if not args.add_adastra_celltype:
+            raise ValueError("ADASTRA celltype file (-aact) is required for ADASTRA annotation")
 
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format='%(asctime)s - %(levelname)s - %(message)s')
@@ -131,6 +181,36 @@ def main(args = None):
             variant_scores = variant_scores.merge(all_plink_variants,
                 on=['variant_id'],
                 how='left')
+            
+    if args.add_adastra and args.add_adastra_tf and args.add_adastra_celltype:
+        adastra_tf_file = args.add_adastra_tf
+        adastra_celltype_file = args.add_adastra_celltype
+        sig_adastra_tf = pd.read_table(adastra_tf_file)
+        sig_adastra_celltype = pd.read_table(adastra_celltype_file)
+
+        # Modify both to have a variant_id column, since we don't retrieve their rsids. This takes some extra time, might be worth changing later.
+        # variant_id should be <chr>:<pos>:<ref>:<alt>
+        sig_adastra_tf['variant_id'] = sig_adastra_tf.apply(lambda x: f"{x['#chr']}:{x['pos']}:{x['ref']}:{x['alt']}", axis=1)
+        sig_adastra_celltype['variant_id'] = sig_adastra_celltype.apply(lambda x: f"{x['#chr']}:{x['pos']}:{x['ref']}:{x['alt']}", axis=1)
+
+        logging.debug(f"ADASTRA TF table:\n{sig_adastra_tf.shape}\n{sig_adastra_tf.head()}")
+        logging.debug(f"ADASTRA celltype table:\n{sig_adastra_celltype.shape}\n{sig_adastra_celltype.head()}")
+
+        n_threads = args.threads if args.threads else DEFAULT_THREADS
+        chunk_size = len(variant_scores) // n_threads
+        chunks = np.array_split(variant_scores, len(variant_scores) // chunk_size)
+
+        args_for_starmap = [(chunk, sig_adastra_tf, sig_adastra_celltype) for chunk in chunks]
+
+        with Pool(processes=n_threads) as pool:
+            results = pool.starmap(get_asb_adastra, args_for_starmap)
+
+        variant_scores = pd.concat(results)
+
+        pool.close()
+        pool.join()
+
+        logging.debug(f"ADASTRA annotations added to variant scores:\n{variant_scores.shape}\n{variant_scores.head()}")
 
     os.remove(tmp_bed_file_path)
 

@@ -72,6 +72,10 @@ def update_variant_annotation_args(parser):
     parser.add_argument("-p", "--peaks", type=str, help="Adds overlapping peaks information. Bed file containing peak regions.")
     parser.add_argument("-g", "--closest-genes", type=str, help="Adds closest gene annotations. Bed file containing gene regions. Default amount is 3.")
     parser.add_argument("-gc", "--closest-gene-count", type=int, help="Changes the number of closest genes (using the -g flag) annotated to the specified number.")
+    parser.add_argument("-aa", "--add-adastra", action="store_true", help="Annotate with ADASTRA. Requires downloadable ADASTRA data, which you must provide using the -aatf and -aact flags.")
+    parser.add_argument("-aatf", "--add-adastra-tf", type=argparse.FileType('r'), help="The file containing ADASTRA TF data.")
+    parser.add_argument("-aact", "--add-adastra-celltype", type=argparse.FileType('r'), help="The file containing ADASTRA cell type data.")
+    parser.add_argument("-th", "--threads", type=int, help="The maximum amount of threads to use, where possible.")
     parser.add_argument("-r2", "--r2", type=str, help="Adds r2 annotations. Requires a PLINK .ld file.")
     parser.add_argument("-sc", "--schema", type=str, required=True, choices=['bed', 'plink', 'plink2', 'chrombpnet', 'original'], default='chrombpnet', help="Format for the input variants list.")
     parser.add_argument("-v", "--verbose", help="Enable detailed logging.", action="store_true")
@@ -80,7 +84,6 @@ def fetch_variant_annotation_args():
     parser = argparse.ArgumentParser()
     update_variant_annotation_args(parser)
     args = parser.parse_args()
-    print(args)
     return args
 
 def fetch_main_parser():
@@ -105,4 +108,5 @@ def fetch_main_parser():
         sys.exit(1)
 
     args = parser.parse_args()
+
     return args
