@@ -92,4 +92,3 @@ class VariantGenerator(Sequence):
 
     def __len__(self):
         return math.ceil(self.num_variants/self.batch_size)
-
