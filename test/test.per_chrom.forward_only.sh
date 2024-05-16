@@ -13,7 +13,8 @@ python -u ../src/variant_scoring.per_chrom.py \
   -s /oak/stanford/groups/akundaje/airanman/test_data/variant-scorer/shared/GRCh38_EBV.chrom.sizes.tsv \
   -m /oak/stanford/groups/akundaje/airanman/test_data/variant-scorer/ENCSR999NKW/fold_0/chrombpnet_wo_bias.h5 \
   -p /oak/stanford/groups/akundaje/airanman/test_data/variant-scorer/ENCSR999NKW/peaks.subset.bed.gz \
-  -o output/test \
+  -fo \
+  -o output/forward_only \
   -t 20 \
   -sc chrombpnet
 
