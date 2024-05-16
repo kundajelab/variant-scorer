@@ -153,7 +153,7 @@ def main():
             print()
             peaks.to_csv(peak_scores_file, sep="\t", index=False)
 
-        if len(shuf_variants_table) > 0:
+        if len(shuf_variants_table) > 0 and not shuf_variants_done:
             shuf_logfc, shuf_jsd, \
             shuf_allele1_percentile, shuf_allele2_percentile = get_variant_scores_with_peaks(shuf_allele1_pred_counts,
                                                                                             shuf_allele2_pred_counts,
@@ -172,7 +172,7 @@ def main():
                 shuf_variants_table["jsd"] = shuf_adjusted_jsd_list
             else:
                 shuf_variants_table["jsd"] = shuf_jsd
-                assert shuf_adjusted_jsd_list == shuf_jsd
+                assert np.array_equal(shuf_adjusted_jsd_list, shuf_jsd)
             shuf_variants_table['original_jsd'] = shuf_jsd
             shuf_variants_table["logfc_x_jsd"] =  shuf_variants_table["logfc"] * shuf_variants_table["jsd"]
             shuf_variants_table["abs_logfc_x_jsd"] = shuf_variants_table["abs_logfc"] * shuf_variants_table["jsd"]
@@ -199,7 +199,7 @@ def main():
             shuf_variants_table.to_csv(shuf_scores_file, sep="\t", index=False)
 
     else:
-        if len(shuf_variants_table) > 0:
+        if len(shuf_variants_table) > 0 and not shuf_variants_done:
             shuf_logfc, shuf_jsd = get_variant_scores(shuf_allele1_pred_counts,
                                                     shuf_allele2_pred_counts,
                                                     shuf_allele1_pred_profiles,
@@ -217,7 +217,7 @@ def main():
                 shuf_variants_table["jsd"] = shuf_adjusted_jsd_list
             else:
                 shuf_variants_table["jsd"] = shuf_jsd
-                assert shuf_adjusted_jsd_list == shuf_jsd
+                assert np.array_equal(shuf_adjusted_jsd_list, shuf_jsd)
             shuf_variants_table['original_jsd'] = shuf_jsd
             shuf_variants_table["logfc_x_jsd"] =  shuf_variants_table["logfc"] * shuf_variants_table["jsd"]
             shuf_variants_table["abs_logfc_x_jsd"] = shuf_variants_table["abs_logfc"] * shuf_variants_table["jsd"]
@@ -277,7 +277,7 @@ def main():
         variants_table["jsd"] = adjusted_jsd_list
     else:
         variants_table["jsd"] = jsd
-        assert adjusted_jsd_list == jsd
+        assert np.array_equal(adjusted_jsd_list, jsd)
     variants_table["original_jsd"] = jsd
     variants_table["logfc_x_jsd"] = variants_table["logfc"] * variants_table["jsd"]
     variants_table["abs_logfc_x_jsd"] = variants_table["abs_logfc"] * variants_table["jsd"]

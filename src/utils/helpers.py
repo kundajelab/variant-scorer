@@ -59,7 +59,7 @@ def get_valid_variants(chrom, pos, allele1, allele2, input_len, chrom_sizes_dict
         return False
 
 def softmax(x, temp=1):
-    norm_x = x - np.mean(x,axis=1, keepdims=True)
+    norm_x = x - np.mean(x, axis=1, keepdims=True)
     return np.exp(temp*norm_x)/np.sum(np.exp(temp*norm_x), axis=1, keepdims=True)
 
 def load_model_wrapper(model_file):
@@ -233,10 +233,19 @@ def get_variant_scores_with_peaks(allele1_pred_counts, allele2_pred_counts,
 
 def get_variant_scores(allele1_pred_counts, allele2_pred_counts,
                        allele1_pred_profiles, allele2_pred_profiles):
+    
+    print('allele1_pred_counts shape:', allele1_pred_counts.shape)
+    print('allele2_pred_counts shape:', allele2_pred_counts.shape)
+    print('allele1_pred_profiles shape:', allele1_pred_profiles.shape)
+    print('allele2_pred_profiles shape:', allele2_pred_profiles.shape)
+
     logfc = np.squeeze(np.log2(allele2_pred_counts / allele1_pred_counts))
-    jsd = np.array([jensenshannon(np.array([np.squeeze(softmax(i)) for i in x]),
-                                  np.array([np.squeeze(softmax(j)) for j in y]),
-                                  base=2.0) for x,y in zip(allele2_pred_profiles, allele1_pred_profiles)])
+    jsd = np.squeeze([jensenshannon(x, y, base=2.0)
+                     for x,y in zip(softmax(allele2_pred_profiles),
+                                    softmax(allele1_pred_profiles))])
+
+    print('logfc shape:', logfc.shape)
+    print('jsd shape:', jsd.shape)
 
     return logfc, jsd
 
