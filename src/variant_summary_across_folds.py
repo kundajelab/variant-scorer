@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 import os
-
 from utils.argmanager import *
 from utils.helpers import *
 
@@ -28,9 +27,9 @@ def main():
         assert score_dict[i]['allele2'].tolist() == variant_scores['allele2'].tolist()
         assert score_dict[i]['variant_id'].tolist() == variant_scores['variant_id'].tolist()
 
-    for score in ["logfc", "abs_logfc", "jsd", "logfc_x_jsd", "abs_logfc_x_jsd", "max_percentile",
-                  "logfc_x_max_percentile", "abs_logfc_x_max_percentile", "jsd_x_max_percentile",
-                  "logfc_x_jsd_x_max_percentile", "abs_logfc_x_jsd_x_max_percentile"]:
+    for score in ["logfc", "abs_logfc", "jsd", "logfc_x_jsd", "abs_logfc_x_jsd", "active_allele_quantile",
+                  "logfc_x_active_allele_quantile", "abs_logfc_x_active_allele_quantile", "jsd_x_active_allele_quantile",
+                  "logfc_x_jsd_x_active_allele_quantile", "abs_logfc_x_jsd_x_active_allele_quantile"]:
         if score in score_dict[0]:
             variant_scores.loc[:, (score + '.mean')] = np.mean(np.array([score_dict[fold][score].tolist()
                                                                     for fold in score_dict]), axis=0)
@@ -50,6 +49,7 @@ def main():
                           index=False)
 
     print("DONE")
+    print()
 
 
 if __name__ == "__main__":

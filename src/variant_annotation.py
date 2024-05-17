@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import os
 import subprocess
-
 from utils.argmanager import *
 from utils.helpers import *
 
@@ -110,6 +109,7 @@ def main():
                           index=False)
 
     print("DONE")
+    print()
 
 
 if __name__ == "__main__":

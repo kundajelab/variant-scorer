@@ -4,7 +4,7 @@ import numpy as np
 import math
 import pyfaidx
 from utils import one_hot
-from deeplift.dinuc_shuffle import dinuc_shuffle
+
 
 class PeakGenerator(Sequence):
     def __init__(self,
@@ -33,11 +33,12 @@ class PeakGenerator(Sequence):
 
     def __getitem__(self, idx):
         cur_entries = self.peaks.iloc[idx*self.batch_size:min([self.num_peaks,(idx+1)*self.batch_size])]
+        peak_ids = cur_entries['chr'] + ':' + cur_entries['start'].astype(str) + '-' + cur_entries['end'].astype(str)
+
         seqs = [self.__get_seq__(x, y, z) for x,y,z in
                 zip(cur_entries.chr, cur_entries.start, cur_entries.summit)]
 
-        return one_hot.dna_to_one_hot(seqs)
-
+        return peak_ids, one_hot.dna_to_one_hot(seqs)
+    
     def __len__(self):
         return math.ceil(self.num_peaks/self.batch_size)
-
