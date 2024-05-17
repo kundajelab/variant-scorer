@@ -1,17 +1,8 @@
-from tensorflow.keras.utils import get_custom_objects
-from tensorflow.keras.models import load_model
-import tensorflow as tf
-import scipy.stats
-from scipy.spatial.distance import jensenshannon
 import pandas as pd
 import os
-import argparse
 import numpy as np
 import h5py
-import math
-from generators.variant_generator import VariantGenerator
-from generators.peak_generator import PeakGenerator
-from utils import argmanager, losses
+from utils import argmanager
 from utils.helpers import *
 
 
@@ -90,12 +81,6 @@ def main():
             shuf_variants_table["allele1_pred_counts"] = shuf_allele1_pred_counts
             shuf_variants_table["allele2_pred_counts"] = shuf_allele2_pred_counts
 
-            print()
-            print(shuf_variants_table.head())
-            print("Shuffled score table shape:", shuf_variants_table.shape)
-            print()
-            shuf_variants_table.to_csv(shuf_scores_file, sep="\t", index=False)
-
     if args.peaks:
         if args.peak_chrom_sizes == None:
             args.peak_chrom_sizes = args.chrom_sizes
@@ -155,11 +140,11 @@ def main():
 
         if len(shuf_variants_table) > 0 and not shuf_variants_done:
             shuf_logfc, shuf_jsd, \
-            shuf_allele1_percentile, shuf_allele2_percentile = get_variant_scores_with_peaks(shuf_allele1_pred_counts,
+            shuf_allele1_quantile, shuf_allele2_quantile = get_variant_scores_with_peaks(shuf_allele1_pred_counts,
                                                                                             shuf_allele2_pred_counts,
                                                                                             shuf_allele1_pred_profiles,
                                                                                             shuf_allele2_pred_profiles,
-                                                                                            peak_pred_counts)           
+                                                                                            peaks["peak_score"].tolist())
             shuf_indel_idx, shuf_adjusted_jsd_list = adjust_indel_jsd(shuf_variants_table,
                                                                       shuf_allele1_pred_profiles,
                                                                       shuf_allele2_pred_profiles,
@@ -177,16 +162,16 @@ def main():
             shuf_variants_table["logfc_x_jsd"] =  shuf_variants_table["logfc"] * shuf_variants_table["jsd"]
             shuf_variants_table["abs_logfc_x_jsd"] = shuf_variants_table["abs_logfc"] * shuf_variants_table["jsd"]
 
-            shuf_variants_table["allele1_percentile"] = shuf_allele1_percentile
-            shuf_variants_table["allele2_percentile"] = shuf_allele2_percentile
-            shuf_variants_table["max_percentile"] = shuf_variants_table[["allele1_percentile", "allele2_percentile"]].max(axis=1)
-            shuf_variants_table["percentile_change"] = shuf_variants_table["allele2_percentile"] - shuf_variants_table["allele1_percentile"]
-            shuf_variants_table["abs_percentile_change"] = np.abs(shuf_variants_table["percentile_change"])
-            shuf_variants_table["logfc_x_max_percentile"] = shuf_variants_table["logfc"] * shuf_variants_table["max_percentile"]
-            shuf_variants_table["abs_logfc_x_max_percentile"] = shuf_variants_table["abs_logfc"] * shuf_variants_table["max_percentile"]
-            shuf_variants_table["jsd_x_max_percentile"] = shuf_variants_table["jsd"] * shuf_variants_table["max_percentile"]
-            shuf_variants_table["logfc_x_jsd_x_max_percentile"] = shuf_variants_table["logfc_x_jsd"] * shuf_variants_table["max_percentile"]
-            shuf_variants_table["abs_logfc_x_jsd_x_max_percentile"] = shuf_variants_table["abs_logfc_x_jsd"] * shuf_variants_table["max_percentile"]
+            shuf_variants_table["allele1_quantile"] = shuf_allele1_quantile
+            shuf_variants_table["allele2_quantile"] = shuf_allele2_quantile
+            shuf_variants_table["active_allele_quantile"] = shuf_variants_table[["allele1_quantile", "allele2_quantile"]].max(axis=1)
+            shuf_variants_table["quantile_change"] = shuf_variants_table["allele2_quantile"] - shuf_variants_table["allele1_quantile"]
+            shuf_variants_table["abs_quantile_change"] = np.abs(shuf_variants_table["quantile_change"])
+            shuf_variants_table["logfc_x_active_allele_quantile"] = shuf_variants_table["logfc"] * shuf_variants_table["active_allele_quantile"]
+            shuf_variants_table["abs_logfc_x_active_allele_quantile"] = shuf_variants_table["abs_logfc"] * shuf_variants_table["active_allele_quantile"]
+            shuf_variants_table["jsd_x_active_allele_quantile"] = shuf_variants_table["jsd"] * shuf_variants_table["active_allele_quantile"]
+            shuf_variants_table["logfc_x_jsd_x_active_allele_quantile"] = shuf_variants_table["logfc_x_jsd"] * shuf_variants_table["active_allele_quantile"]
+            shuf_variants_table["abs_logfc_x_jsd_x_active_allele_quantile"] = shuf_variants_table["abs_logfc_x_jsd"] * shuf_variants_table["active_allele_quantile"]
 
             assert shuf_variants_table["abs_logfc"].shape == shuf_logfc.shape
             assert shuf_variants_table["abs_logfc"].shape == shuf_jsd.shape
@@ -253,11 +238,11 @@ def main():
 
     if args.peaks:
         logfc, jsd, \
-        allele1_percentile, allele2_percentile = get_variant_scores_with_peaks(allele1_pred_counts,
+        allele1_quantile, allele2_quantile = get_variant_scores_with_peaks(allele1_pred_counts,
                                                                                 allele2_pred_counts,
                                                                                 allele1_pred_profiles,
                                                                                 allele2_pred_profiles,
-                                                                                peak_pred_counts)
+                                                                                peaks["peak_score"].tolist())
 
     else:
         logfc, jsd = get_variant_scores(allele1_pred_counts,
@@ -289,34 +274,34 @@ def main():
         variants_table["logfc_x_jsd.pval"] = get_pvals(variants_table["logfc_x_jsd"].tolist(), shuf_variants_table["logfc_x_jsd"], tail="both")
         variants_table["abs_logfc_x_jsd.pval"] = get_pvals(variants_table["abs_logfc_x_jsd"].tolist(), shuf_variants_table["abs_logfc_x_jsd"], tail="right")
     if args.peaks:
-        variants_table["allele1_percentile"] = allele1_percentile
-        variants_table["allele2_percentile"] = allele2_percentile
-        variants_table["max_percentile"] = variants_table[["allele1_percentile", "allele2_percentile"]].max(axis=1)
-        variants_table["percentile_change"] = variants_table["allele2_percentile"] - variants_table["allele1_percentile"]
-        variants_table["abs_percentile_change"] = np.abs(variants_table["percentile_change"])
-        variants_table["logfc_x_max_percentile"] = variants_table["logfc"] * variants_table["max_percentile"]
-        variants_table["abs_logfc_x_max_percentile"] = variants_table["abs_logfc"] * variants_table["max_percentile"]
-        variants_table["jsd_x_max_percentile"] = variants_table["jsd"] * variants_table["max_percentile"]
-        variants_table["logfc_x_jsd_x_max_percentile"] = variants_table["logfc_x_jsd"] * variants_table["max_percentile"]
-        variants_table["abs_logfc_x_jsd_x_max_percentile"] = variants_table["abs_logfc_x_jsd"] * variants_table["max_percentile"]
+        variants_table["allele1_quantile"] = allele1_quantile
+        variants_table["allele2_quantile"] = allele2_quantile
+        variants_table["active_allele_quantile"] = variants_table[["allele1_quantile", "allele2_quantile"]].max(axis=1)
+        variants_table["quantile_change"] = variants_table["allele2_quantile"] - variants_table["allele1_quantile"]
+        variants_table["abs_quantile_change"] = np.abs(variants_table["quantile_change"])
+        variants_table["logfc_x_active_allele_quantile"] = variants_table["logfc"] * variants_table["active_allele_quantile"]
+        variants_table["abs_logfc_x_active_allele_quantile"] = variants_table["abs_logfc"] * variants_table["active_allele_quantile"]
+        variants_table["jsd_x_active_allele_quantile"] = variants_table["jsd"] * variants_table["active_allele_quantile"]
+        variants_table["logfc_x_jsd_x_active_allele_quantile"] = variants_table["logfc_x_jsd"] * variants_table["active_allele_quantile"]
+        variants_table["abs_logfc_x_jsd_x_active_allele_quantile"] = variants_table["abs_logfc_x_jsd"] * variants_table["active_allele_quantile"]
 
         if len(shuf_variants_table) > 0:
-            variants_table["max_percentile.pval"] = get_pvals(variants_table["max_percentile"].tolist(),
-                                                              shuf_variants_table["max_percentile"], tail="right")
-            variants_table['percentile_change.pval'] = get_pvals(variants_table["percentile_change"].tolist(),
-                                                                 shuf_variants_table["percentile_change"], tail="both")
-            variants_table["abs_percentile_change.pval"] = get_pvals(variants_table["abs_percentile_change"].tolist(),
-                                                                     shuf_variants_table["abs_percentile_change"], tail="right")
-            variants_table["logfc_x_max_percentile.pval"] = get_pvals(variants_table["logfc_x_max_percentile"].tolist(),
-                                                                      shuf_variants_table["logfc_x_max_percentile"], tail="both")
-            variants_table["abs_logfc_x_max_percentile.pval"] = get_pvals(variants_table["abs_logfc_x_max_percentile"].tolist(),
-                                                                          shuf_variants_table["abs_logfc_x_max_percentile"], tail="right")
-            variants_table["jsd_x_max_percentile.pval"] = get_pvals(variants_table["jsd_x_max_percentile"].tolist(),
-                                                                    shuf_variants_table["jsd_x_max_percentile"], tail="right")
-            variants_table["logfc_x_jsd_x_max_percentile.pval"] = get_pvals(variants_table["logfc_x_jsd_x_max_percentile"].tolist(),
-                                                                            shuf_variants_table["logfc_x_jsd_x_max_percentile"], tail="both")
-            variants_table["abs_logfc_x_jsd_x_max_percentile.pval"] = get_pvals(variants_table["abs_logfc_x_jsd_x_max_percentile"].tolist(),
-                                                                                shuf_variants_table["abs_logfc_x_jsd_x_max_percentile"], tail="right")
+            variants_table["active_allele_quantile.pval"] = get_pvals(variants_table["active_allele_quantile"].tolist(),
+                                                              shuf_variants_table["active_allele_quantile"], tail="right")
+            variants_table['quantile_change.pval'] = get_pvals(variants_table["quantile_change"].tolist(),
+                                                                 shuf_variants_table["quantile_change"], tail="both")
+            variants_table["abs_quantile_change.pval"] = get_pvals(variants_table["abs_quantile_change"].tolist(),
+                                                                     shuf_variants_table["abs_quantile_change"], tail="right")
+            variants_table["logfc_x_active_allele_quantile.pval"] = get_pvals(variants_table["logfc_x_active_allele_quantile"].tolist(),
+                                                                      shuf_variants_table["logfc_x_active_allele_quantile"], tail="both")
+            variants_table["abs_logfc_x_active_allele_quantile.pval"] = get_pvals(variants_table["abs_logfc_x_active_allele_quantile"].tolist(),
+                                                                          shuf_variants_table["abs_logfc_x_active_allele_quantile"], tail="right")
+            variants_table["jsd_x_active_allele_quantile.pval"] = get_pvals(variants_table["jsd_x_active_allele_quantile"].tolist(),
+                                                                    shuf_variants_table["jsd_x_active_allele_quantile"], tail="right")
+            variants_table["logfc_x_jsd_x_active_allele_quantile.pval"] = get_pvals(variants_table["logfc_x_jsd_x_active_allele_quantile"].tolist(),
+                                                                            shuf_variants_table["logfc_x_jsd_x_active_allele_quantile"], tail="both")
+            variants_table["abs_logfc_x_jsd_x_active_allele_quantile.pval"] = get_pvals(variants_table["abs_logfc_x_jsd_x_active_allele_quantile"].tolist(),
+                                                                                shuf_variants_table["abs_logfc_x_jsd_x_active_allele_quantile"], tail="right")
 
     if args.schema == "bed":
         variants_table['pos'] = variants_table['pos'] - 1
@@ -334,7 +319,6 @@ def main():
     print(variants_table.head())
     print("Output score table shape:", variants_table.shape)
     print()
-
     variants_table.to_csv('.'.join([args.out_prefix, "variant_scores.tsv"]), sep="\t", index=False)
 
     print("DONE")

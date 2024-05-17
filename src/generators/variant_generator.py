@@ -6,6 +6,7 @@ import pyfaidx
 from utils import one_hot
 from deeplift.dinuc_shuffle import dinuc_shuffle
 
+
 class VariantGenerator(Sequence):
     def __init__(self,
                  variants_table,
@@ -88,7 +89,6 @@ class VariantGenerator(Sequence):
             return variant_ids, list(allele1_seqs),list(allele2_seqs)
         else:
             return variant_ids, one_hot.dna_to_one_hot(list(allele1_seqs)), one_hot.dna_to_one_hot(list(allele2_seqs))
-        
-
+    
     def __len__(self):
         return math.ceil(self.num_variants/self.batch_size)

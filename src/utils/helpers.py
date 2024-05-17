@@ -1,20 +1,15 @@
 from tensorflow.keras.utils import get_custom_objects
 from tensorflow.keras.models import load_model
 import tensorflow as tf
-import scipy.stats
 from scipy.spatial.distance import jensenshannon
 import pandas as pd
-import os
-import argparse
 import numpy as np
-import h5py
-import math
 from tqdm import tqdm
 import sys
 sys.path.append('..')
 from generators.variant_generator import VariantGenerator
 from generators.peak_generator import PeakGenerator
-from utils import argmanager, losses
+from utils import losses
 
 
 def get_variant_schema(schema):
@@ -226,10 +221,10 @@ def get_variant_scores_with_peaks(allele1_pred_counts, allele2_pred_counts,
 
     logfc, jsd = get_variant_scores(allele1_pred_counts, allele2_pred_counts,
                                     allele1_pred_profiles, allele2_pred_profiles)
-    allele1_percentile = np.array([np.max([np.mean(pred_counts < x), (1/len(pred_counts))]) for x in allele1_pred_counts])
-    allele2_percentile = np.array([np.max([np.mean(pred_counts < x), (1/len(pred_counts))]) for x in allele2_pred_counts])
+    allele1_quantile = np.array([np.max([np.mean(pred_counts < x), (1/len(pred_counts))]) for x in allele1_pred_counts])
+    allele2_quantile = np.array([np.max([np.mean(pred_counts < x), (1/len(pred_counts))]) for x in allele2_pred_counts])
 
-    return logfc, jsd, allele1_percentile, allele2_percentile
+    return logfc, jsd, allele1_quantile, allele2_quantile
 
 def get_variant_scores(allele1_pred_counts, allele2_pred_counts,
                        allele1_pred_profiles, allele2_pred_profiles):

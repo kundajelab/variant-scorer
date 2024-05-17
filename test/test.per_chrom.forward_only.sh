@@ -5,6 +5,7 @@ set -u
 set -o pipefail
 set -x
 
+#rm -rf output
 mkdir -p output/
 
 python -u ../src/variant_scoring.per_chrom.py \
