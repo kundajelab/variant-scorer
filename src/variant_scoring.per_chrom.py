@@ -144,7 +144,7 @@ def main():
                                                                                             shuf_allele2_pred_counts,
                                                                                             shuf_allele1_pred_profiles,
                                                                                             shuf_allele2_pred_profiles,
-                                                                                            peaks["peak_score"].tolist())
+                                                                                            np.array(peaks["peak_score"].tolist()))
             shuf_indel_idx, shuf_adjusted_jsd_list = adjust_indel_jsd(shuf_variants_table,
                                                                       shuf_allele1_pred_profiles,
                                                                       shuf_allele2_pred_profiles,
@@ -263,7 +263,7 @@ def main():
                                                                                         allele2_pred_counts,
                                                                                         allele1_pred_profiles,
                                                                                         allele2_pred_profiles,
-                                                                                        peaks["peak_score"].tolist())
+                                                                                        np.array(peaks["peak_score"].tolist()))
 
             else:
                 logfc, jsd = get_variant_scores(allele1_pred_counts,
