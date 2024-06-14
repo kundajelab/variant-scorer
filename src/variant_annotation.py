@@ -4,6 +4,7 @@ import os
 import subprocess
 from utils.argmanager import *
 from utils.helpers import *
+pd.set_option('display.max_columns', 20)
 
 
 def main():
@@ -59,7 +60,7 @@ def main():
                 closest_genes[row[5]] = []
                 gene_dists[row[5]] = []
             closest_genes[row[5]].append(row[9])
-            gene_dists[row[5]].append(row[10])
+            gene_dists[row[5]].append(row.iloc[-1])
 
         closest_gene_df = closest_gene_df.rename({5:'variant_id'},axis=1)
         closest_gene_df = closest_gene_df[['variant_id']]

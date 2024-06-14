@@ -89,7 +89,7 @@ def fetch_peak_predictions(model, peaks, input_len, genome_fasta, batch_size, de
                                          np.zeros((len(seqs), model.output_shape[0][1])),
                                          np.zeros((len(seqs), ))],
                                         verbose=False)
-            
+
             if not forward_only:
                 revcomp_batch_preds = model.predict([revcomp_seq,
                                              np.zeros((len(revcomp_seq), model.output_shape[0][1])),
@@ -103,7 +103,7 @@ def fetch_peak_predictions(model, peaks, input_len, genome_fasta, batch_size, de
         batch_preds[1] = np.array([batch_preds[1][i] for i in range(len(batch_preds[1]))])
         pred_counts.extend(np.exp(batch_preds[1]))
         pred_profiles.extend(np.array(batch_preds[0]))   # np.squeeze(softmax()) to get probability profile
-        
+
         if not forward_only:
             revcomp_batch_preds[1] = np.array([revcomp_batch_preds[1][i] for i in range(len(revcomp_batch_preds[1]))])
             revcomp_counts.extend(np.exp(revcomp_batch_preds[1]))
@@ -114,7 +114,7 @@ def fetch_peak_predictions(model, peaks, input_len, genome_fasta, batch_size, de
     peak_ids = np.array(peak_ids)
     pred_counts = np.array(pred_counts)
     pred_profiles = np.array(pred_profiles)
-    
+
     if not forward_only:
         revcomp_counts = np.array(revcomp_counts)
         revcomp_profiles = np.array(revcomp_profiles)
@@ -159,7 +159,7 @@ def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, ba
                                                  np.zeros((len(allele2_seqs), model.output_shape[0][1])),
                                                  np.zeros((len(allele2_seqs), ))],
                                                 verbose=False)
-            
+
             if not forward_only:
                 revcomp_allele1_batch_preds = model.predict([revcomp_allele1_seqs,
                                                      np.zeros((len(revcomp_allele1_seqs), model.output_shape[0][1])),
@@ -182,7 +182,7 @@ def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, ba
         allele2_pred_counts.extend(np.exp(allele2_batch_preds[1]))
         allele1_pred_profiles.extend(np.array(allele1_batch_preds[0]))   # np.squeeze(softmax()) to get probability profile
         allele2_pred_profiles.extend(np.array(allele2_batch_preds[0]))
-        
+
         if not forward_only:
             revcomp_allele1_batch_preds[1] = np.array([revcomp_allele1_batch_preds[1][i] for i in range(len(revcomp_allele1_batch_preds[1]))])
             revcomp_allele2_batch_preds[1] = np.array([revcomp_allele2_batch_preds[1][i] for i in range(len(revcomp_allele2_batch_preds[1]))])
@@ -198,7 +198,7 @@ def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, ba
     allele2_pred_counts = np.array(allele2_pred_counts)
     allele1_pred_profiles = np.array(allele1_pred_profiles)
     allele2_pred_profiles = np.array(allele2_pred_profiles)
-    
+
     if not forward_only:
         revcomp_allele1_pred_counts = np.array(revcomp_allele1_pred_counts)
         revcomp_allele2_pred_counts = np.array(revcomp_allele2_pred_counts)
@@ -228,7 +228,7 @@ def get_variant_scores_with_peaks(allele1_pred_counts, allele2_pred_counts,
 
 def get_variant_scores(allele1_pred_counts, allele2_pred_counts,
                        allele1_pred_profiles, allele2_pred_profiles):
-    
+
     print('allele1_pred_counts shape:', allele1_pred_counts.shape)
     print('allele2_pred_counts shape:', allele2_pred_counts.shape)
     print('allele1_pred_profiles shape:', allele1_pred_profiles.shape)
@@ -254,7 +254,7 @@ def adjust_indel_jsd(variants_table,allele1_pred_profiles,allele2_pred_profiles,
             allele2 = ""
         if len(allele1) != len(allele2):
             indel_idx += [i]
-            
+
     adjusted_jsd = []
     for i in indel_idx:
         row = variants_table.iloc[i]
@@ -263,7 +263,7 @@ def adjust_indel_jsd(variants_table,allele1_pred_profiles,allele2_pred_profiles,
             allele1 = ""
         if allele2 == "-":
             allele2 = ""
-            
+
         allele1_length = len(allele1)
         allele2_length = len(allele2)
 
@@ -288,15 +288,15 @@ def adjust_indel_jsd(variants_table,allele1_pred_profiles,allele2_pred_profiles,
         adjusted_allele1_p = adjusted_allele1_p/np.sum(adjusted_allele1_p)
         adjusted_allele2_p = adjusted_allele2_p/np.sum(adjusted_allele2_p)
         assert len(adjusted_allele1_p) == len(adjusted_allele2_p)
-        adjusted_j = jensenshannon(adjusted_allele1_p,adjusted_allele2_p,base=2.0) 
+        adjusted_j = jensenshannon(adjusted_allele1_p,adjusted_allele2_p,base=2.0)
         adjusted_jsd += [adjusted_j]
-    
+
     adjusted_jsd_list = original_jsd.copy()
     if len(indel_idx) > 0:
         for i in range(len(indel_idx)):
             idx = indel_idx[i]
             adjusted_jsd_list[idx] = adjusted_jsd[i]
-        
+
     return indel_idx, adjusted_jsd_list
 
 def load_variant_table(table_path, schema):
@@ -310,8 +310,8 @@ def load_variant_table(table_path, schema):
         variants_table['pos'] = variants_table['pos'] + 1
     return variants_table
 
-def create_shuffle_table(variants_table,random_seed=None,total_shuf=None, num_shuf=None):
-    if total_shuf:
+def create_shuffle_table(variants_table, random_seed=None, total_shuf=None, num_shuf=None):
+    if total_shuf != None:
         if len(variants_table) > total_shuf:
             shuf_variants_table = variants_table.sample(total_shuf,
                                                         random_state=random_seed,
@@ -321,10 +321,10 @@ def create_shuffle_table(variants_table,random_seed=None,total_shuf=None, num_sh
             shuf_variants_table = variants_table.sample(total_shuf,
                                                         random_state=random_seed,
                                                         ignore_index=True,
-                                                        replace=True) 
+                                                        replace=True)
         shuf_variants_table['random_seed'] = np.random.permutation(len(shuf_variants_table))
     else:
-        if num_shuf:
+        if num_shuf != None:
             total_shuf = len(variants_table) * num_shuf
             shuf_variants_table = variants_table.sample(total_shuf,
                                                         random_state=random_seed,
