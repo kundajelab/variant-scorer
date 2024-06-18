@@ -91,6 +91,7 @@ def main():
         peak_chrom_sizes_dict = peak_chrom_sizes.set_index('chrom')['size'].to_dict()
 
         peaks = pd.read_csv(args.peaks, header=None, sep='\t', names=get_peak_schema('narrowpeak'))
+        peaks = add_missing_columns_to_peaks_df(peaks, schema='narrowpeak')
         peaks['peak_id'] = peaks['chr'] + ':' + peaks['start'].astype(str) + '-' + peaks['end'].astype(str)
 
         print("Original peak table shape:", peaks.shape)

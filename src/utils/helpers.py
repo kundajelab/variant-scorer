@@ -356,3 +356,21 @@ def get_pvals(obs, bg, tail):
 
 def geo_mean_overflow(iterable,axis=0):
     return np.exp(np.log(iterable).mean(axis=0))
+
+def add_missing_columns_to_peaks_df(peaks, schema):
+    new_peaks = peaks.copy()
+    fully_nan_columns = new_peaks.columns[new_peaks.isna().all()]
+    if len(fully_nan_columns) > 0:
+        if schema == 'narrowpeak':
+            print(f"Adding missing columns to 'narrowpeaks' peaks dataframe, which has {fully_nan_columns} valid columns")
+            new_peaks['peak_id'] = '.'
+            new_peaks['peak_score'] = '.'
+            new_peaks[5] = '.'
+            new_peaks[6] = '.'
+            new_peaks[7] = '.'
+            new_peaks['rank'] = '.'
+            new_peaks['summit'] = (new_peaks['end'] - new_peaks['start']) // 2
+        else:
+            # Error out
+            raise ValueError("Schema not supported")
+    return new_peaks
