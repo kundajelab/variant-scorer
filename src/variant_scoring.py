@@ -90,7 +90,7 @@ def main():
         peak_chrom_sizes = pd.read_csv(args.peak_chrom_sizes, header=None, sep='\t', names=['chrom', 'size'])
         peak_chrom_sizes_dict = peak_chrom_sizes.set_index('chrom')['size'].to_dict()
 
-        peaks = pd.read_csv(args.peaks, header=None, sep='\t', names=get_peak_schema('narrowpeak'))
+        peaks = pd.read_csv(args.peaks, header=None, sep='\t')
         peaks = add_missing_columns_to_peaks_df(peaks, schema='narrowpeak')
         peaks['peak_id'] = peaks['chr'] + ':' + peaks['start'].astype(str) + '-' + peaks['end'].astype(str)
 
