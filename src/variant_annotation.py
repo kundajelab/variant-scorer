@@ -59,7 +59,7 @@ def main():
             if not row[5] in closest_genes:
                 closest_genes[row[5]] = []
                 gene_dists[row[5]] = []
-            closest_genes[row[5]].append(row[9])
+            closest_genes[row[5]].append(row[-2])
             gene_dists[row[5]].append(row.iloc[-1])
 
         closest_gene_df = closest_gene_df.rename({5:'variant_id'},axis=1)
