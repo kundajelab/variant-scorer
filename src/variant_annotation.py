@@ -28,11 +28,17 @@ def main():
         variant_scores_bed_format = variant_scores_bed_format[['chr','pos','end','allele1','allele2','variant_id']]
         variant_scores_bed_format.sort_values(by=["chr","pos","end"], inplace=True)
 
+    print()
+    print(variant_scores_bed_format.head())
+    print("Variants table shape:", variant_scores_bed_format.shape)
+    print()
+
     variant_bed = pybedtools.BedTool.from_dataframe(variant_scores_bed_format)
 
     if args.genes:
         print("annotating with closest genes")
-        gene_bed = pybedtools.BedTool(genes)
+        gene_df = pd.read_table(genes, header=None)
+        gene_bed = pybedtools.BedTool.from_dataframe(gene_df)
         closest_genes_bed = variant_bed.closest(gene_bed, d=True, t='first', k=3)
 
         closest_gene_df = closest_genes_bed.to_dataframe(header=None)
@@ -71,17 +77,18 @@ def main():
 
     if args.peaks:
         print("annotating with peak overlap")
-        peak_bed = pybedtools.BedTool(peak_path)
+        peak_df = pd.read_table(peak_path, header=None)
+        peak_bed = pybedtools.BedTool.from_dataframe(peak_df)
         peak_intersect_bed = variant_bed.intersect(peak_bed, wa=True, u=True)
 
-        peak_intersect_df = peak_intersect_bed.to_dataframe(header=None)
+        peak_intersect_df = peak_intersect_bed.to_dataframe(names=variant_scores_bed_format.columns.tolist())
 
         print()
         print(peak_intersect_df.head())
         print("Peak overlap table shape:", peak_intersect_df.shape)
         print()
 
-        variant_scores['peak_overlap'] = variant_scores['variant_id'].isin(peak_intersect_df[5].tolist())
+        variant_scores['peak_overlap'] = variant_scores['variant_id'].isin(peak_intersect_df['variant_id'].tolist())
 
     print()
     print(variant_scores.head())
