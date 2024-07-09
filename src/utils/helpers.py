@@ -361,19 +361,20 @@ def add_missing_columns_to_peaks_df(peaks, schema):
     if schema != 'narrowpeak':
         raise ValueError("Schema not supported")
     
+    required_columns = get_peak_schema(schema)
     num_current_columns = peaks.shape[1]
     
     if num_current_columns == 10:
+        peaks.columns = required_columns[:num_current_columns]
         return peaks  # No missing columns, return as is
 
-    if num_current_columns < 3:
+    elif num_current_columns < 3:
         raise ValueError("Peaks dataframe has fewer than 3 columns, which is invalid")
     
-    if num_current_columns > 10:
+    elif num_current_columns > 10:
         raise ValueError("Peaks dataframe has greater than 10 columns, which is invalid")
     
     # Add missing columns to reach a total of 10 columns
-    required_columns = get_peak_schema(schema)
     peaks.columns = required_columns[:num_current_columns]
     columns_to_add = required_columns[num_current_columns:]
     
