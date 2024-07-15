@@ -218,7 +218,7 @@ def main():
             print()
             shuf_variants_table.to_csv(shuf_scores_file, sep="\t", index=False)
 
-    todo_chroms = [x for x in variants_table.chr.unique() if not os.path.exists('.'.join([args.out_prefix, str(x), "variant_scores.tsv"]))]
+    todo_chroms = [x for x in variants_table.chr.unique()]
 
     for chrom in todo_chroms:
         print()
