@@ -10,6 +10,7 @@ sys.path.append('..')
 from generators.variant_generator import VariantGenerator
 from generators.peak_generator import PeakGenerator
 from utils import losses
+from scipy.stats import binomtest
 
 
 def get_variant_schema(schema):
@@ -353,6 +354,13 @@ def get_pvals(obs, bg, tail):
     pval_both = min_pval * 2
 
     return pval_both
+
+def get_pvals_with_binomtest(ref_counts, alt_counts):
+    pvals = []
+    for ref_count, alt_count in zip(ref_counts, alt_counts):
+        pval = binomtest(alt_count, ref_count + alt_count, 0.5).pvalue
+        pvals.append(pval)
+    return pvals
 
 def geo_mean_overflow(iterable,axis=0):
     return np.exp(np.log(iterable).mean(axis=0))
