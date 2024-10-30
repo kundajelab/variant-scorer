@@ -280,6 +280,9 @@ def main():
         variants_table["jsd.pval"] = get_pvals(variants_table["jsd"].tolist(), shuf_variants_table["jsd"], tail="right")
         variants_table["logfc_x_jsd.pval"] = get_pvals(variants_table["logfc_x_jsd"].tolist(), shuf_variants_table["logfc_x_jsd"], tail="both")
         variants_table["abs_logfc_x_jsd.pval"] = get_pvals(variants_table["abs_logfc_x_jsd"].tolist(), shuf_variants_table["abs_logfc_x_jsd"], tail="right")
+    
+    variants_table["binom_pval"] = get_pvals_with_binomtest(ref_counts=variants_table["allele1_pred_counts"].tolist(), alt_counts=variants_table["allele2_pred_counts"].tolist())
+        
     if args.peaks:
         variants_table["allele1_quantile"] = allele1_quantile
         variants_table["allele2_quantile"] = allele2_quantile
