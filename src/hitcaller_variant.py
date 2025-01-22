@@ -1,4 +1,4 @@
-import numpy as np 
+import numpy as np
 import h5py
 import subprocess
 import argparse
@@ -15,6 +15,7 @@ def parse_args():
 	parser.add_argument("--hits_per_loc", type=int, help="Maximum number of hits to return per sequence per locus")
 	parser.add_argument("--output_dir", type=str, help="Output directory")
 	parser.add_argument("--alpha", type=float, default=0.6, help="Alpha value for hit calling")
+	parser.add_argument("--include_motifs", type=str, help="Include motifs")
 	args = parser.parse_args()
 	return args
 
@@ -24,7 +25,7 @@ def h5_to_npz(args):
 	If the input is given as a h5, then this function runs the relevant finemo command to convert it to a npz file
 	Regions of width 100 are extracted, since this should be sufficient for hits containing the central variant
 	'''
-	extract_command = ["finemo", "extract-regions-h5", "-c", args.shap_data, "-w", "100", "-o", os.path.join(args.output_dir, "shap_input.npz")]
+	extract_command = ["finemo", "extract-regions-chrombpnet-h5", "-c", args.shap_data, "-w", "100", "-o", os.path.join(args.output_dir, "shap_input.npz")]
 	subprocess.run(extract_command)
 
 def run_hit_calling(args, npz_file):
@@ -32,9 +33,9 @@ def run_hit_calling(args, npz_file):
 	Runs hit calling given the npz file with input interpretation data
 	'''
 	if args.variant_file is not None:
-		subprocess.run(["finemo", "call-hits", "-r", npz_file, "-m", args.modisco_h5, "-o", args.output_dir, "-b", "1000", "-a", str(args.alpha), "-p", os.path.join(args.output_dir, "variant_locs.narrowPeak")])
+		subprocess.run(["finemo", "call-hits", "-r", npz_file, "-m", args.modisco_h5, "-o", args.output_dir, "-b", "256", "-a", str(args.alpha), "-p", os.path.join(args.output_dir, "variant_locs.narrowPeak"), "-I", args.include_motifs, "-N", args.include_motifs])
 	else:
-		subprocess.run(["finemo", "call-hits", "-r", npz_file, "-m", args.modisco_h5, "-o", args.output_dir, "-b", "1000", "-a", str(args.alpha)])
+		subprocess.run(["finemo", "call-hits", "-r", npz_file, "-m", args.modisco_h5, "-o", args.output_dir, "-b", "256", "-a", str(args.alpha), "-I", args.include_motifs, "-N", args.include_motifs])
 
 def parse_hit_calls(args):
 	'''
@@ -52,7 +53,7 @@ def parse_hit_calls(args):
 	else:
 		hits_df["variant_loc"] = [50] * len(hits_df)
 
-	variant_hits = hits_df.loc[(hits_df["start"] <= hits_df["variant_loc"]) & (hits_df["end"] >= hits_df["variant_loc"])]
+	variant_hits = hits_df.loc[(hits_df["start"] <= hits_df["variant_loc"]) & (hits_df["end"] >= hits_df["variant_loc"])].copy()
 	variant_hits["inv_coeff"] = -1 * variant_hits["hit_coefficient"]
 	print()
 	print(variant_hits.head())
@@ -98,11 +99,9 @@ def main():
 	#Run the hit caller and save the results
 	run_hit_calling(args, npz_file)
 	output_df = parse_hit_calls(args)
-	output_df.to_csv(args.output_dir + "variant_hit_calls.tsv", sep="\t", header=True, index=False)
+	output_df.to_csv(os.path.join(args.output_dir, "variant_hit_calls.tsv"), sep="\t", header=True, index=False)
 
 
 if __name__ == "__main__":
 	main()
-
-
 
