@@ -33,15 +33,21 @@ def run_hit_calling(args, npz_file):
 	Runs hit calling given the npz file with input interpretation data
 	'''
 	if args.variant_file is not None:
-		subprocess.run(["finemo", "call-hits", "-r", npz_file, "-m", args.modisco_h5, "-o", args.output_dir, "-b", "256", "-a", str(args.alpha), "-p", os.path.join(args.output_dir, "variant_locs.narrowPeak"), "-I", args.include_motifs, "-N", args.include_motifs])
+		if args.include_motifs is not None:
+			subprocess.run(["finemo", "call-hits", "-r", npz_file, "-m", args.modisco_h5, "-o", args.output_dir, "-b", "256", "-a", str(args.alpha), "-p", os.path.join(args.output_dir, "variant_locs.narrowPeak"), "-I", args.include_motifs, "-N", args.include_motifs])
+		else:
+			subprocess.run(["finemo", "call-hits", "-r", npz_file, "-m", args.modisco_h5, "-o", args.output_dir, "-b", "256", "-a", str(args.alpha), "-p", os.path.join(args.output_dir, "variant_locs.narrowPeak")])
 	else:
-		subprocess.run(["finemo", "call-hits", "-r", npz_file, "-m", args.modisco_h5, "-o", args.output_dir, "-b", "256", "-a", str(args.alpha), "-I", args.include_motifs, "-N", args.include_motifs])
+		if args.include_motifs is not None:
+			subprocess.run(["finemo", "call-hits", "-r", npz_file, "-m", args.modisco_h5, "-o", args.output_dir, "-b", "256", "-a", str(args.alpha), "-I", args.include_motifs, "-N", args.include_motifs])
+		else:
+			subprocess.run(["finemo", "call-hits", "-r", npz_file, "-m", args.modisco_h5, "-o", args.output_dir, "-b", "256", "-a", str(args.alpha)])
 
 def parse_hit_calls(args):
 	'''
 	Given an output file from the hit caller, identifies hits containing the central variant and returns the top n hits per sequence
 	'''
-	hits_file = os.path.join(args.output_dir, "hits_unique.tsv")
+	hits_file = os.path.join(args.output_dir, "hits.tsv")
 	hits_df = pd.read_csv(hits_file, sep="\t")
 	# print(hits_df.head())
 
@@ -63,7 +69,7 @@ def parse_hit_calls(args):
 	else:
 		variant_hits['allele'] = "N/A"
 	variant_out_final = variant_hits[["peak_id", "chr", "start", "end", "motif_name", "allele",
-								   	  "variant_loc", "hit_coefficient", "hit_correlation", "hit_importance"]]
+										"variant_loc", "hit_coefficient", "hit_correlation", "hit_importance"]]
 	return variant_out_final
 
 
