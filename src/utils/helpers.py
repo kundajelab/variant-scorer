@@ -245,10 +245,8 @@ def get_variant_scores(allele1_pred_counts, allele2_pred_counts,
     return logfc, jsd
 
 def adjust_indel_jsd(variants_table,allele1_pred_profiles,allele2_pred_profiles,original_jsd):
-    print(np.sum(allele1_pred_profiles,axis=1))
     allele1_pred_profiles = softmax(allele1_pred_profiles)
     allele2_pred_profiles = softmax(allele2_pred_profiles)
-    print(np.sum(allele1_pred_profiles,axis=1))
     indel_idx = []
     for i, row in variants_table.iterrows():
         allele1, allele2 = row[['allele1','allele2']]
