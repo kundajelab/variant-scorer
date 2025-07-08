@@ -1,6 +1,10 @@
 # variant-scorer
 
-The variant scoring repository provides a set of scripts for scoring genetic variants using a ChromBPNet model.
+The variant scoring repository provides a set of scripts for scoring genetic variants using a ChromBPNet model. A few things to note:
+
+- pos (position) column is for 1-indexed SNP position, unless the schema is *bed*
+- the reported log fold-change (logFC) is in log base 2
+- by default, counts and profile prediction for each allele are averaged between the predictions obtained using the forward sequence and the reverse-complement of that sequence as input. This can be disabled using the --forward_only option to only use the forward sequence predictions.
 
 ---
 
@@ -114,5 +118,3 @@ python variant_annotation.py -sd [VARIANT_SCORE_DIR] -o [out_prefix] -p [PEAKS] 
 ````
 
 ---
-
-**Note:** pos (position) column is for 1-indexed SNP position, unless the schema is *bed*
