@@ -28,7 +28,7 @@ names adhering to one of the following schemas:
 
 ## Specifying variants
 
-For single-nucleotide variants, `allele1` and `allele2` are expected to be the reference and alternate alleles, respectively,
+For single-nucleotide variants, `allele1` and `allele2`, provide the correspondding nucleotide for each allele,
 e.g. (for variants provided in the `chrombpnet` schema):
 
 ```
@@ -69,7 +69,7 @@ We provide several additional metrics that are computed as the product of the ab
 
 # Workflow
 
-## 1. Score variants: `variant_scoring.py
+## 1. Score variants: `variant_scoring.py`
 
 This script takes a list of variants in various input formats and generates scores
 for the variants using a ChromBPNet model. The output is a TSV file containing the scores for each variant. 
@@ -92,7 +92,7 @@ python variant_scoring.py -l [VARIANTS_FILE] -g [GENOME_FASTA] -m [MODEL_PATH] -
 - `-g`, `--genome` (**required**): Path to the genome FASTA
 - `-pg`, `--peak_genome`: Path to the genome FASTA for peaks
 - `-m`, `--model` (**required**): Path to the ChromBPNet model .h5 file to use for variant scoring. For most use cases, this should be the bias-corrected model (chrombpnet_nobias.h5)
-- `-o`, `--out_prefix` (**required**): Output prefix for storing SNP effect score predictions from the script, in the form of <path>/<prefix>. Directory should already exist.
+- `-o`, `--out_prefix` (**required**): Output prefix for storing SNP effect score predictions from the script, in the form of `<path>/<prefix>`. Directory should already exist.
 - `-s`, `--chrom_sizes` (**required**): Path to TSV file with chromosome sizes
 - `-ps`, `--peak_chrom_sizes`: Path to TSV file with chromosome sizes for peak genome
 - `-b`, `--bias`: Bias model to use for variant scoring
@@ -131,7 +131,7 @@ python variant_summary_across_folds.py -sd [VARIANT_SCORE_DIR] -sl [SCORE_LIST] 
 - `-h`, `--help`: Show help message with arguments and their descriptions, and exit
 - `-sd`, `--score_dir` (**required**): Path to directory containing variant scores that will be used to generate summary
 - `-sl`, `--score_list` (**required**): Space-separated list of variant score file names that will be used to generate summary. Files should exist in `--score_dir`.
-- `-o`, `--out_prefix` (**required**): Output prefix for storing the summary file with average scores across folds, in the form of <path>/<prefix>. Directory should already exist.
+- `-o`, `--out_prefix` (**required**): Output prefix for storing the summary file with average scores across folds, in the form of `<path>/<prefix>`. Directory should already exist.
 - `-sc`, `--schema`: Format for the input variants list. Choices: `bed`, `plink`, `plink2`, `chrombpnet`, `original`. Default is `chrombpnet`.
 
 
@@ -152,7 +152,7 @@ python variant_annotation.py -sd [VARIANT_SCORE_DIR] -o [out_prefix] -p [PEAKS] 
 
 - `-h`, `--help`: Show help message with arguments and their descriptions, and exit
 - `-l`, `--list` (**required**): Path to TSV file containing a list of variants to annotate
-- `-o`, `--out_prefix` (**required**): Output prefix for storing the annotated file, in the form of <path>/<prefix>. Directory should already exist.
+- `-o`, `--out_prefix` (**required**): Output prefix for storing the annotated file, in the form of `<path>/<prefix>`. Directory should already exist.
 - `-sc`, `--schema` (**required**): Format for the input variants list. Choices: `bed`, `plink`, `plink2`, `chrombpnet`, `original`. Default is `chrombpnet`.
 - `-p`, `--peaks`: Path to BED file containing peak regions
 - `-ge`, `--genes`: Path to BED file containing gene regions
