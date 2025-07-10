@@ -75,7 +75,7 @@ This script takes a list of variants in various input formats and generates scor
 for the variants using a ChromBPNet model. The output is a TSV file containing the scores for each variant. 
 Since variants are stored in memory, we also provide `variant_scoring.per_chrom.py` to score variants on a per-chromosome basis,
 and write the scores per chromosome to file before proceeding to the next chromosome. Per-chromosome
-files can then be merged.
+files can then be merged automatically using the `--merge` option.
 
 ### Usage:
 

@@ -25,6 +25,7 @@ def update_scoring_args(parser):
     parser.add_argument("-fo", "--forward_only", action='store_true', help="Run variant scoring only on forward sequence")
     parser.add_argument("-st", "--shap_type",  nargs='+', default=["counts"], help="ChromBPNet output for which SHAP values should be computed ('counts' or 'profile'). Default is 'counts'")
     parser.add_argument("-sh", "--shuffled_scores", type=str, help="Path to pre-computed shuffled scores")
+    parser.add_argument("--merge", action='store_true', help="For per-chromosome scoring, merge all per-chromosome predictions into a single file, and deletes the per-chromosome files. Default is False.")
 
 def fetch_scoring_args():
     parser = argparse.ArgumentParser()
