@@ -239,6 +239,9 @@ def main():
         if os.path.isfile(chrom_scores_file):
             chrom_variants_table_loaded = pd.read_table(chrom_scores_file)
             if chrom_variants_table_loaded['variant_id'].tolist() == chrom_variants_table['variant_id'].tolist():
+
+                print("Loaded existing chrom scores file:", chrom_scores_file)
+
                 chrom_scores_done = True
 
         if not chrom_scores_done:
