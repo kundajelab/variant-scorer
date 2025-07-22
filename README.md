@@ -28,7 +28,7 @@ names adhering to one of the following schemas:
 
 ## Specifying variants
 
-For single-nucleotide variants, `allele1` and `allele2`, provide the correspondding nucleotide for each allele,
+For single-nucleotide variants, `allele1` and `allele2`, provide the corresponding nucleotide for each allele,
 e.g. (for variants provided in the `chrombpnet` schema):
 
 ```
@@ -47,24 +47,6 @@ For insertions, use `-` for `allele1` to represent the inserted nucleotides, e.g
 chr1	866281	-	CT	1_866281_CTins
 ```
 
-## Outputs
-
-Predicted effects are computed as `allele2` vs `allele1`. For each variant, we 
-compute the following metrics, as described in the [ChromPBNet preprint](https://www.biorxiv.org/content/10.1101/2024.12.25.630221v1.full.pdf+html):
-
-- `logfc`: Log fold-change of total predicted coverage for `allele2` vs `allele1`, providing a canonical effect size of the variant on local accessibility. A higher `logFC` indicates higher predicted accessibility for `allele2` compared to `allele1`.
-- `abs_logfc`: Absolute value of the log fold-change.
-- `active_allele_quantile`: Active Allele Quantile is the percentile of the predicted total coverage of the stronger allele relative to the distribution of predicted total coverage across all ATAC-seq/DNase-seq peaks.  
-- `jsd`: Jensen-Shannon distance between the bias-corrected base-resolution probability profiles of the two alleles, which captures effects on profile shape, such as changes in TF footprints.
-
-We provide several additional metrics that are computed as the product of the above metrics:
-
-- `abs_logfc_x_jsd`: described in the preprint as Integrative  Effect  Size  (IES), the  product  of  logFC  and  JSD,
-- `logfc_x_active_allele_quantile`
-- `abs_logfc_x_active_allele_quantile`
-- `jsd_x_active_allele_quantile`
-- `logfc_x_jsd_x_active_allele_quantile`: described in the preprint as Integrative Prioritization Score (IPS) is the product of logFC, JSD, and AAQ
-- `abs_logfc_x_jsd_x_active_allele_quantile`
 
 
 # Workflow
@@ -81,7 +63,12 @@ files can then be merged automatically using the `--merge` option.
 
 
 ```bash
-python variant_scoring.py -l [VARIANTS_FILE] -g [GENOME_FASTA] -m [MODEL_PATH] -o [OUT_PREFIX] -s [CHROM_SIZES] [OTHER_ARGS]
+python variant_scoring.py --list [VARIANTS_FILE] \
+    --genome [GENOME_FASTA] \
+	--model [MODEL_PATH] \
+	--out_prefix [OUT_PREFIX] \
+	--chrom_sizes [CHROM_SIZES] \
+	[OTHER_ARGS]
 ```
 
 ### Input arguments:
@@ -113,6 +100,28 @@ python variant_scoring.py -l [VARIANTS_FILE] -g [GENOME_FASTA] -m [MODEL_PATH] -
 - `-sh`, `--shuffled_scores`: Path to pre-computed shuffled scores
 
 
+## Outputs:
+
+The variant scores are stored in `<out_prefix>.variant_scores.tsv`.
+
+Predicted effects are computed as `allele2` vs `allele1`. For each variant, we 
+compute the following metrics, as described in the [ChromPBNet preprint](https://www.biorxiv.org/content/10.1101/2024.12.25.630221v1.full.pdf+html):
+
+- `logfc`: Log fold-change of total predicted coverage for `allele2` vs `allele1`, providing a canonical effect size of the variant on local accessibility. A higher `logFC` indicates higher predicted accessibility for `allele2` compared to `allele1`.
+- `abs_logfc`: Absolute value of the log fold-change.
+- `active_allele_quantile`: Active Allele Quantile is the percentile of the predicted total coverage of the stronger allele relative to the distribution of predicted total coverage across all ATAC-seq/DNase-seq peaks.  
+- `jsd`: Jensen-Shannon distance between the bias-corrected base-resolution probability profiles of the two alleles, which captures effects on profile shape, such as changes in TF footprints.
+
+We provide several additional metrics that are computed as the product of the above metrics:
+
+- `abs_logfc_x_jsd`: described in the preprint as Integrative  Effect  Size  (IES), the  product  of  logFC  and  JSD,
+- `logfc_x_active_allele_quantile`
+- `abs_logfc_x_active_allele_quantile`
+- `jsd_x_active_allele_quantile`
+- `logfc_x_jsd_x_active_allele_quantile`: described in the preprint as Integrative Prioritization Score (IPS) is the product of logFC, JSD, and AAQ
+- `abs_logfc_x_jsd_x_active_allele_quantile`
+
+
 
 ## 2. Summarize variant scores across model folds: `variant_summary_across_folds.py`
 
@@ -122,7 +131,11 @@ and generates a TSV file with the mean scores for each score metric across folds
 ### Usage:
 
 ```bash
-python variant_summary_across_folds.py -sd [VARIANT_SCORE_DIR] -sl [SCORE_LIST] -o [out_prefix] -s [SCHEMA]
+python variant_summary_across_folds.py \
+	--score_dir [VARIANT_SCORE_DIR] \
+	--score_list [SCORE_LIST] \
+	--out_prefix [OUT_PREFIX] \
+	--schema [SCHEMA]
 ```
 
 ### Input arguments:
@@ -135,6 +148,11 @@ python variant_summary_across_folds.py -sd [VARIANT_SCORE_DIR] -sl [SCORE_LIST] 
 - `-sc`, `--schema`: Format for the input variants list. Choices: `bed`, `plink`, `plink2`, `chrombpnet`, `original`. Default is `chrombpnet`.
 
 
+### Outputs:
+
+The summary file is stored at `<out_prefix>.mean.variant_scores.tsv`.
+
+
 ## 3. Annotate variants: `variant_annotation.py`
 
 This script takes a list of variants and annotates each with their closest genes and any overlaps with peaks.
@@ -144,7 +162,12 @@ This script takes a list of variants and annotates each with their closest genes
 ### Usage:
 
 ```bash
-python variant_annotation.py -sd [VARIANT_SCORE_DIR] -o [out_prefix] -p [PEAKS] -g [GENES] -s [SCHEMA]
+python variant_annotation.py \
+	--score_dir [VARIANT_SCORE_DIR] \
+	--out_prefix [OUT_PREFIX] \
+	--peaks [PEAKS] \
+	--genes [GENES] \
+	--schema [SCHEMA]
 ```
 
 ### Input arguments:
@@ -157,3 +180,48 @@ python variant_annotation.py -sd [VARIANT_SCORE_DIR] -o [out_prefix] -p [PEAKS] 
 - `-p`, `--peaks`: Path to BED file containing peak regions
 - `-ge`, `--genes`: Path to BED file containing gene regions
 
+
+## 4. Compute variant SHAP scores: `variant_shap.py`
+
+This script computes the contribution scores for each variant, for allele1
+and allele2, with respect to the specified ChromBPNet model output (`counts` or `profile`).
+
+```bash
+python variant_shap.py \
+	--list [VARIANTS_FILE] \
+	--genome [GENOME] \
+	--chrom_sizes [CHROM_SIZES] \
+	--model [MODEL_PATH] \
+	--out_prefix [OUT_PREFIX] \
+	--schema [SCHEMA] \
+	--shap_type [SHAP_TYPE] \
+	[OTHER_ARGS]
+```
+
+### Input arguments:
+
+- `-h`, `--help`: Show help message with arguments and their descriptions, and exit
+- `-l`, `--list` (**required**): A TSV file containing a list of variants to score
+- `-g`, `--genome` (**required**): Path to genome FASTA
+- `-m`, `--model` (**required**): Path to the ChromBPNet model .h5 file to use for variant scoring. For most use cases, this should be the bias-corrected model (chrombpnet_nobias.h5)
+- `-o`, `--out_prefix` (**required**): Output prefix for storing SNP effect score predictions from the script, in the form of `<path>/<prefix>`. Directory should already exist.
+- `-s`, `--chrom_sizes` (**required**): Path to TSV file with chromosome sizes
+- `-li`, `--lite`: Models were trained with chrombpnet-lite
+- `-dm`, `--debug_mode`: Display allele input sequences
+- `-bs`, `--batch_size`: Batch size to use for the model. Default is 10000
+- `-sc`, `--schema`: Format for the input variants list. Choices: `bed`, `plink`, `chrombpnet`, `original`. Default is `chrombpnet`
+- `-c`, `--chrom`: Only score SNPs in selected chromosome
+- `-st`, `--shap_type`: ChromBPNet output for which SHAP values should be computed. Can specify multiple values. Default is `counts`
+
+
+### Outputs:
+
+The variant SHAP scores are stored in `<out_prefix>.variant_shap.<shap_type>.h5`.
+
+The h5 file contains the following datasets:
+
+- `alleles`: shape `(2 * number of variants, )`, binary array indicating whether the allele is allele1 (0) or allele2 (1)
+- `raw/seq`: shape `(2 * number of variants, 4, 2114)`, contains one hot encoding of sequences around the variant which were scored
+- `shap/seq`: shape `(2 * number of variants, 4, 2114)`, contains hypothetical contribution scores
+- `projected_shap/seq`: shape `(2 * number of variants, 4, 2114)`, contains values obtained by multiplying hypothetical SHAP values with raw (one-hot encoded) sequences
+- `variant_ids`: shape `(2 * number of variants, )`, contains variant identifiers corresponding to each variant as provided in the input list
