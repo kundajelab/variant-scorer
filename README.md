@@ -81,6 +81,7 @@ python variant_scoring.py --list [VARIANTS_FILE] \
 - `-m`, `--model` (**required**): Path to the ChromBPNet model .h5 file to use for variant scoring. For most use cases, this should be the bias-corrected model (chrombpnet_nobias.h5)
 - `-o`, `--out_prefix` (**required**): Output prefix for storing SNP effect score predictions from the script, in the form of `<path>/<prefix>`. Directory should already exist.
 - `-s`, `--chrom_sizes` (**required**): Path to TSV file with chromosome sizes
+- `--no_hdf5`: Do not save basepair resolution predictions to hdf5 file. Recommended for large variant lists.
 - `-ps`, `--peak_chrom_sizes`: Path to TSV file with chromosome sizes for peak genome
 - `-b`, `--bias`: Bias model to use for variant scoring
 - `-li`, `--lite`: Models were trained with chrombpnet-lite
