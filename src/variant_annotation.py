@@ -103,6 +103,10 @@ def main():
         # If non-empty
         if not peak_intersect_df.empty:
             variant_scores['peak_overlap'] = variant_scores['variant_id'].isin(peak_intersect_df['variant_id'].tolist())
+        else:
+            # add empty column if no peaks overlap found
+            variant_scores['peak_overlap'] = False
+            print("No peaks overlap found.")
 
     # Process overlaps between variants and provided motif hits
     if args.hits:
