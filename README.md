@@ -101,7 +101,8 @@ python variant_scoring.py --list [VARIANTS_FILE] \
 - `-sh`, `--shuffled_scores`: Path to pre-computed shuffled scores
 
 
-## Outputs:
+
+### Outputs:
 
 The variant scores are stored in `<out_prefix>.variant_scores.tsv`.
 
@@ -121,6 +122,9 @@ We provide several additional metrics that are computed as the product of the ab
 - `jsd_x_active_allele_quantile`
 - `logfc_x_jsd_x_active_allele_quantile`: described in the preprint as Integrative Prioritization Score (IPS) is the product of logFC, JSD, and AAQ
 - `abs_logfc_x_jsd_x_active_allele_quantile`
+
+*__NOTE__*: For profile predictions, the saved arrays consist of model logits, not probabilities. This allows for averaging profile predictions across folds more easily, by averaging logits over folds and then taking the softmax (see [`variant-scorer/pull/23`](https://github.com/kundajelab/variant-scorer/pull/23)).
+
 
 
 
