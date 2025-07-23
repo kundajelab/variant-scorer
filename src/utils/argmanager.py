@@ -68,15 +68,30 @@ def fetch_variant_summary_args():
     return args
 
 def update_variant_annotation_args(parser):
-    parser.add_argument("-l", "--list", type=str, required=True, help="Path to TSV file containing a list of variants to annotate")
+    parser.add_argument(
+        "-l", "--list", type=str, required=True,
+        help=(
+            "Path to TSV file containing the variant scores (or summarized scores) to annotate.\n"
+            "Alternatively, provide a BED file of variants with --schema bed.\n"
+            "The file should contain variant information compatible with the selected schema."
+        )
+    )
     parser.add_argument("-o", "--out_prefix", type=str, required=True, help="Output prefix for storing the annotated file, in the form of <path>/<prefix>. Directory should already exist.")
     parser.add_argument("-p", "--peaks", type=str, help="Path to BED file containing peak regions")
+    parser.add_argument("--hits", type=str, help="Path to BED file containing motif hits regions")
     parser.add_argument("-ge", "--genes", type=str, help="Path to BED file containing gene regions")
-    parser.add_argument("-sc", "--schema", type=str, required=True, choices=['bed', 'plink', 'plink2', 'chrombpnet', 'original'], default='chrombpnet', help="Format for the input variants list")
+    parser.add_argument("-sc", "--schema", type=str, required=False, choices=['bed', 'plink', 'plink2', 'chrombpnet', 'original'], default='chrombpnet', help="Format for the input variants list")
 
 def fetch_variant_annotation_args():
     parser = argparse.ArgumentParser()
     update_variant_annotation_args(parser)
     args = parser.parse_args()
     print(args)
+
+    # Assert that at least one of genes, peaks, or hits is provided
+    if not args.genes and not args.peaks and not args.hits:
+        print("Error: At least one of --genes, --peaks, or --hits must be provided for annotation.")
+        parser.print_help()
+        exit(1)
+
     return args

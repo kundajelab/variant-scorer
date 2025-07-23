@@ -14,7 +14,7 @@ for a discussion).
 
 # Variant inputs
 
-## Schemas
+## Variant file schemas
 
 Variant lists should be provided as TSVs with one variant per row, and column
 names adhering to one of the following schemas:
@@ -156,18 +156,20 @@ The summary file is stored at `<out_prefix>.mean.variant_scores.tsv`.
 
 ## 3. Annotate variants: `variant_annotation.py`
 
-This script takes a list of variants and annotates each with their closest genes and any overlaps with peaks.
+This script takes a list of variants and annotates each with their closest genes,
+and/or overlaps with peaks or motif hits.
 
-**NOTE:** This script assumes that the peaks and genes are in the same reference genome as the variants, and it does not perform any liftover operations.
+**NOTE:** This script assumes that the genes, peaks, and hits are in the same reference genome as the variants, and it does not perform any liftOver operations.
 
 ### Usage:
 
 ```bash
 python variant_annotation.py \
-	--score_dir [VARIANT_SCORE_DIR] \
+	--list [VARIANT_SCORES or VARIANT_LIST] \
 	--out_prefix [OUT_PREFIX] \
 	--peaks [PEAKS] \
 	--genes [GENES] \
+	--hits [HITS] \
 	--schema [SCHEMA]
 ```
 
@@ -175,12 +177,14 @@ python variant_annotation.py \
 
 
 - `-h`, `--help`: Show help message with arguments and their descriptions, and exit
-- `-l`, `--list` (**required**): Path to TSV file containing a list of variants to annotate
+- `-l`, `--list` (**required**): Path to TSV file containing scored variants as output by `variant_scoring.py` (or the summary across folds), or a BED file of variants with the `--schema bed` option.
 - `-o`, `--out_prefix` (**required**): Output prefix for storing the annotated file, in the form of `<path>/<prefix>`. Directory should already exist.
-- `-sc`, `--schema` (**required**): Format for the input variants list. Choices: `bed`, `plink`, `plink2`, `chrombpnet`, `original`. Default is `chrombpnet`.
-- `-p`, `--peaks`: Path to BED file containing peak regions
-- `-ge`, `--genes`: Path to BED file containing gene regions
+- `-sc`, `--schema`: Format for the input variants list. Use `bed` if providing BED file of variants.
+- `-ge`, `--genes`: Path to BED file containing gene regions. If provided, the script will annotate each variant with the three closest genes and the distance to each.
+- `-p`, `--peaks`: Path to BED file containing peak regions. If provided, the script will annotate each variant according to whether it overlaps with any peak.
+- `--hits`: Path to BED file containing motif hits, with columns `chr`, `start`, `end`, `motif`, `score`, `strand`, `class`. If provided, the script will annotate variants with whether they overlap any motif hits (and which they overlap).
 
+At least one of `--genes`, `--peaks`, or `--hits` must be provided for annotation.
 
 ## 4. Compute variant SHAP scores: `variant_shap.py`
 
