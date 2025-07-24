@@ -2,6 +2,7 @@ import pandas as pd
 import pybedtools
 from utils.argmanager import *
 from utils.helpers import *
+from utils.io import *
 pd.set_option('display.max_columns', 20)
 
 

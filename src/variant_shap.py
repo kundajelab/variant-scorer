@@ -13,6 +13,7 @@ from generators.variant_generator import VariantGenerator
 from generators.peak_generator import PeakGenerator
 from utils import argmanager, losses
 from utils.helpers import *
+from utils.io import *
 import shap
 from utils.shap_utils import *
 import deepdish as dd

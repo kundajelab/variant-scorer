@@ -10,20 +10,8 @@ sys.path.append('..')
 from generators.variant_generator import VariantGenerator
 from generators.peak_generator import PeakGenerator
 from utils import losses
+from utils.io import get_variant_schema, get_peak_schema
 
-
-def get_variant_schema(schema):
-    var_SCHEMA = {'original': ['chr', 'pos', 'variant_id', 'allele1', 'allele2'],
-                  'plink': ['chr', 'variant_id', 'ignore1', 'pos', 'allele1', 'allele2'],
-                  'plink2': ['chr', 'variant_id', 'pos', 'allele1', 'allele2'],
-                  'bed': ['chr', 'pos', 'end', 'allele1', 'allele2', 'variant_id'],
-                  'chrombpnet': ['chr', 'pos', 'allele1', 'allele2', 'variant_id']}
-    return var_SCHEMA[schema]
-
-def get_peak_schema(schema):
-    PEAK_SCHEMA = {'narrowpeak': ['chr', 'start', 'end', 'peak_id', 'peak_score',
-                                  5, 6, 7, 'rank', 'summit']}
-    return PEAK_SCHEMA[schema]
 
 def get_valid_peaks(chrom, pos, summit, input_len, chrom_sizes_dict):
     valid_chrom = chrom in chrom_sizes_dict
@@ -300,6 +288,18 @@ def adjust_indel_jsd(variants_table,allele1_pred_profiles,allele2_pred_profiles,
             adjusted_jsd_list[idx] = adjusted_jsd[i]
 
     return indel_idx, adjusted_jsd_list
+        adjusted_allele2_p = adjusted_allele2_p/np.sum(adjusted_allele2_p)
+        assert len(adjusted_allele1_p) == len(adjusted_allele2_p)
+        adjusted_j = jensenshannon(adjusted_allele1_p,adjusted_allele2_p,base=2.0)
+        adjusted_jsd += [adjusted_j]
+
+    adjusted_jsd_list = original_jsd.copy()
+    if len(indel_idx) > 0:
+        for i in range(len(indel_idx)):
+            idx = indel_idx[i]
+            adjusted_jsd_list[idx] = adjusted_jsd[i]
+
+    return indel_idx, adjusted_jsd_list
 
 def load_variant_table(table_path, schema):
     variants_table = pd.read_csv(table_path, header=None, sep='\t', names=get_variant_schema(schema))
@@ -356,7 +356,7 @@ def get_pvals(obs, bg, tail):
 
     return pval_both
 
-def geo_mean_overflow(iterable,axis=0):
+def geo_mean_overflow(iterable, axis=0):
     return np.exp(np.log(iterable).mean(axis=0))
 
 def add_missing_columns_to_peaks_df(peaks, schema):
