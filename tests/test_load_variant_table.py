@@ -9,10 +9,6 @@ from utils.io import load_variant_table, get_variant_schema
 
 class TestLoadVariantTable:
 	
-	@pytest.fixture
-	def test_data_dir(self):
-		return os.path.join(os.path.dirname(__file__), 'data')
-	
 	def test_load_chrombpnet_schema(self, test_data_dir):
 		"""Test loading variants with chrombpnet schema"""
 		file_path = os.path.join(test_data_dir, 'test.chrombpnet.tsv')
@@ -36,17 +32,20 @@ class TestLoadVariantTable:
 		
 	def test_load_bed_schema(self, test_data_dir):
 		"""Test loading variants with bed schema"""
+
 		file_path = os.path.join(test_data_dir, 'test.bed')
+
+		df_orig = pd.read_csv(file_path, sep='\t', header=None)
+
 		df = load_variant_table(file_path, 'bed')
 		
 		# Check columns
 		expected_cols = ['chr', 'pos', 'end', 'allele1', 'allele2', 'variant_id']
 		assert list(df.columns) == expected_cols
 		
-		# Check that positions are converted from 0-based to 1-based
-		# The pos column should be incremented by 1
-		assert df['pos'].dtype in ['int64', 'int32']
-		
+		# Check that the position column is incremented by 1
+		assert (df['pos'] - 1).equals(df_orig[1])
+
 	def test_load_plink_schema(self, test_data_dir):
 		"""Test loading variants with plink schema"""
 		file_path = os.path.join(test_data_dir, 'test.plink.tsv')

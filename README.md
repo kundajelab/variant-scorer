@@ -63,7 +63,7 @@ files can then be merged automatically using the `--merge` option.
 
 
 ```bash
-python variant_scoring.py --list [VARIANTS_FILE] \
+python src/variant_scoring.py --list [VARIANTS_FILE] \
     --genome [GENOME_FASTA] \
 	--model [MODEL_PATH] \
 	--out_prefix [OUT_PREFIX] \
@@ -136,7 +136,7 @@ and generates a TSV file with the mean scores for each score metric across folds
 ### Usage:
 
 ```bash
-python variant_summary_across_folds.py \
+python src/variant_summary_across_folds.py \
 	--score_dir [VARIANT_SCORE_DIR] \
 	--score_list [SCORE_LIST] \
 	--out_prefix [OUT_PREFIX] \
@@ -168,7 +168,7 @@ and/or overlaps with peaks or motif hits.
 ### Usage:
 
 ```bash
-python variant_annotation.py \
+python src/variant_annotation.py \
 	--list [VARIANT_SCORES or VARIANT_LIST] \
 	--out_prefix [OUT_PREFIX] \
 	--peaks [PEAKS] \
@@ -196,7 +196,7 @@ This script computes the contribution scores for each variant, for allele1
 and allele2, with respect to the specified ChromBPNet model output (`counts` or `profile`).
 
 ```bash
-python variant_shap.py \
+python src/variant_shap.py \
 	--list [VARIANTS_FILE] \
 	--genome [GENOME] \
 	--chrom_sizes [CHROM_SIZES] \

@@ -1,5 +1,8 @@
 #!/usr/bin/bash
 
+# Selin Jessa
+# July 2025
+
 wd=`pwd`
 
 # Purpose: Documenting the process of setting up caQTL data for package testing. These data
@@ -41,7 +44,7 @@ wc -l caqtls.african.lcls.benchmarking.subset.tsv
 
 # 4. Move the file to the package data directory
 cd $wd
-mv caqtls.african.lcls.benchmarking.subset.tsv ../tests/data
+mv ~/Downloads/variant-scorer/data/caqtls.african.lcls.benchmarking.subset.tsv ../tests/data
 
 # 5. Convert to various input formats for testing
 
