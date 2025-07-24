@@ -29,22 +29,41 @@ class TestLoadVariantTable:
 		assert len(df) > 0
 		assert df['allele1'].notna().all()
 		assert df['allele2'].notna().all()
+
+	def test_incorrect_chrombpnet(self, test_data_dir):
+		"""Test loading an incorrect chrombpnet file"""
+		file_path = os.path.join(test_data_dir, 'test.chrombpnet.incorrect.tsv')
+		
+		with pytest.raises(ValueError):
+			load_variant_table(file_path, 'chrombpnet')
 		
 	def test_load_bed_schema(self, test_data_dir):
 		"""Test loading variants with bed schema"""
-
 		file_path = os.path.join(test_data_dir, 'test.bed')
-
+		
+		# First check that the file has the right number of columns
 		df_orig = pd.read_csv(file_path, sep='\t', header=None)
-
+		expected_bed_cols = 6
+		assert df_orig.shape[1] == expected_bed_cols, f"BED file should have {expected_bed_cols} columns, found {df_orig.shape[1]}"
+		
 		df = load_variant_table(file_path, 'bed')
 		
 		# Check columns
 		expected_cols = ['chr', 'pos', 'end', 'allele1', 'allele2', 'variant_id']
 		assert list(df.columns) == expected_cols
 		
+		# Check that no columns have NaN values
+		assert not df.isnull().any().any(), "BED file has missing values"
+		
 		# Check that the position column is incremented by 1
 		assert (df['pos'] - 1).equals(df_orig[1])
+
+	def test_incorrect_bed(self, test_data_dir):
+		"""Test loading an incorrect BED file"""
+		file_path = os.path.join(test_data_dir, 'test.incorrect.bed')
+		
+		with pytest.raises(ValueError):
+			load_variant_table(file_path, 'bed')
 
 	def test_load_plink_schema(self, test_data_dir):
 		"""Test loading variants with plink schema"""

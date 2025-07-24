@@ -19,6 +19,13 @@ def get_peak_schema(schema):
 
 
 def load_variant_table(table_path, schema):
+    # Read file first to check structure
+    temp_df = pd.read_csv(table_path, header=None, sep='\t', nrows=5)
+    expected_cols = len(get_variant_schema(schema))
+    
+    if temp_df.shape[1] != expected_cols:
+        raise ValueError(f"File has {temp_df.shape[1]} columns but {schema} schema expects {expected_cols} columns")
+    
     variants_table = pd.read_csv(table_path, header=None, sep='\t', names=get_variant_schema(schema))
     variants_table.drop(columns=[str(x) for x in variants_table.columns if str(x).startswith('ignore')], inplace=True)
     variants_table['chr'] = variants_table['chr'].astype(str)

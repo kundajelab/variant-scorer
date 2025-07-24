@@ -34,7 +34,7 @@ cut -f 1,2,3,4,5,24,25,26,33,35,36 caqtls.african.lcls.benchmarking.all.tsv \
 	| awk -F'\t' 'NR==1 || $5=="True"' \
 	> caqtls.african.lcls.benchmarking.filtered.tsv
 
-# Make a subset file with just 10 variants from chr1 and chr2
+# Make a subset file with just a few variants from chr1 and chr2
 head -n 1 caqtls.african.lcls.benchmarking.filtered.tsv > caqtls.african.lcls.benchmarking.subset.tsv
 grep chr1 caqtls.african.lcls.benchmarking.filtered.tsv | tail -n+2 | head -n 4 >> caqtls.african.lcls.benchmarking.subset.tsv
 grep chr2 caqtls.african.lcls.benchmarking.filtered.tsv | head -n 2 >> caqtls.african.lcls.benchmarking.subset.tsv
@@ -49,7 +49,7 @@ mv ~/Downloads/variant-scorer/data/caqtls.african.lcls.benchmarking.subset.tsv .
 # 5. Convert to various input formats for testing
 
 # BED (0-based: ['chr', 'pos', 'end', 'allele1', 'allele2', 'variant_id'])
-awk 'BEGIN{OFS="\t"} {print $1,$2-1,$3,$4,$11}' caqtls.african.lcls.benchmarking.subset.tsv \
+awk 'BEGIN{OFS="\t"} {print $1,$2-1,$2,$3,$4,$11}' caqtls.african.lcls.benchmarking.subset.tsv \
 	| tail -n+2 \
 	> test.bed
 
