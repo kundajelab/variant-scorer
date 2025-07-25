@@ -59,7 +59,7 @@ class TestLoadVariantTable:
 		assert (df['pos'] - 1).equals(df_orig[1])
 
 	def test_incorrect_bed(self, test_data_dir):
-		"""Test loading an incorrect BED file"""
+		"""Test loading an incorrect bed file"""
 		file_path = os.path.join(test_data_dir, 'test.incorrect.bed')
 		
 		with pytest.raises(ValueError):
@@ -83,6 +83,20 @@ class TestLoadVariantTable:
 			
 		# Check that chr prefix was added
 		assert all(df['chr'].str.startswith('chr'))
+	
+	def test_invalid_alleles(self, test_data_dir):
+		"""Test that files with invalid allele characters are rejected"""
+		file_path = os.path.join(test_data_dir, 'test.chrombpnet.incorrect.tsv')
+		
+		with pytest.raises(ValueError, match="Invalid characters"):
+			load_variant_table(file_path, 'chrombpnet')
+
+	def test_invalid_alleles2(self, test_data_dir):
+		"""Test that files with invalid allele characters are rejected"""
+		file_path = os.path.join(test_data_dir, 'test.chrombpnet.incorrect2.tsv')
+		
+		with pytest.raises(ValueError, match="Invalid allele"):
+			load_variant_table(file_path, 'chrombpnet')
 	
 	def test_invalid_schema(self, test_data_dir):
 		"""Test that invalid schema raises appropriate error"""

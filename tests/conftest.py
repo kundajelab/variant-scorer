@@ -8,6 +8,12 @@ def test_data_dir():
 
 
 @pytest.fixture(scope="session")
+def out_dir():
+	"""Fixture to provide output directory for tests"""
+	return os.path.join(os.path.dirname(__file__), 'outputs')
+
+
+@pytest.fixture(scope="session")
 def src():
     return os.path.join(os.path.dirname(__file__), '..', 'src')
 
@@ -35,13 +41,12 @@ def genome_path(oak_path):
 
 
 @pytest.fixture(scope="session")
-def model_path(oak_path):
+def model_paths(oak_path):
     """Get model path from environment variable or skip test"""
-    model = os.path.join(oak_path, "model.chrombpnet_nobias.fold_0.ENCSR637XSC.h5")
-    if model is None:
-        pytest.skip("Model path not set")
-    if not os.path.exists(model):
-        pytest.skip(f"Model file not found: {model}")
+    model = [os.path.join(oak_path, f"GM12878_DNase_models/fold_{i}/model.chrombpnet_nobias.fold_{i}.ENCSR000EMT.h5") for i in range(5)]
+    for m in model:
+        if not os.path.exists(m):
+            pytest.skip(f"Model file not found: {m}")
     return model
 
 

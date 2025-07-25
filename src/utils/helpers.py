@@ -345,9 +345,6 @@ def get_pvals(obs, bg, tail):
 
 	return pval_both
 
-def geo_mean_overflow(iterable, axis=0):
-	return np.exp(np.log(iterable).mean(axis=0))
-
 def add_missing_columns_to_peaks_df(peaks, schema):
 	if schema != 'narrowpeak':
 		raise ValueError("Schema not supported")

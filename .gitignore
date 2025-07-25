@@ -16,6 +16,7 @@ coverage.xml
 # Test outputs
 tests/outputs/
 tests/tmp/
+tests/data/raw
 
 .vscode
 test/output

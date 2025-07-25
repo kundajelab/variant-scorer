@@ -18,6 +18,24 @@ def get_peak_schema(schema):
     return PEAK_SCHEMA[schema]
 
 
+def validate_alleles(variants_table):
+    """Validate that alleles contain only valid nucleotides (ACGT) or deletion marker (-)"""
+    valid_chars = set('ACGT-')
+    
+    for col in ['allele1', 'allele2']:
+        if col in variants_table.columns:
+            for idx, allele in enumerate(variants_table[col]):
+
+                allele_str = str(allele).upper()
+
+                if not set(allele_str).issubset(valid_chars):
+                    raise ValueError(f"Invalid characters in {col} at row {idx}: '{allele}'. Only A, C, G, T, and - are allowed.")
+
+                # If the allele contains "-", it should be a single character
+                if '-' in allele_str and len(allele_str) > 1:
+                    raise ValueError(f"Invalid allele at row {idx}: '{allele}'. Use a single '-' to represent INDELs.")
+
+
 def load_variant_table(table_path, schema):
     # Read file first to check structure
     temp_df = pd.read_csv(table_path, header=None, sep='\t', nrows=5)
@@ -33,7 +51,12 @@ def load_variant_table(table_path, schema):
     if not has_chr_prefix:
         variants_table['chr'] = 'chr' + variants_table['chr']
     if schema == "bed":
+        # Convert to 1-based indexing
         variants_table['pos'] = variants_table['pos'] + 1
+    
+    # Validate alleles
+    validate_alleles(variants_table)
+    
     return variants_table
 
 

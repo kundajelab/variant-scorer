@@ -2,8 +2,11 @@ import pandas as pd
 import numpy as np
 import os
 from utils.argmanager import *
-from utils.helpers import *
 from utils.io import *
+
+
+def geo_mean_overflow(iterable, axis=0):
+	return np.exp(np.log(iterable).mean(axis=0))
 
 
 def main():

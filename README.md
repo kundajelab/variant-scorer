@@ -96,7 +96,7 @@ python src/variant_scoring.py --list [VARIANTS_FILE] \
 - `-r`, `--random_seed`: Random seed for reproducibility when sampling
 - `--no_hdf5`: Do not save detailed predictions in hdf5 file
 - `-nc`, `--num_chunks`: Number of chunks to divide SNP file into
-- `-fo`, `--forward_only`: Run variant scoring only on forward sequence
+- `-fo`, `--forward_only`: Run variant scoring only on forward sequence (Default: False)
 - `-st`, `--shap_type`: ChromBPNet output for which SHAP values should be computed (`counts` or `profile`). Default is `counts`
 - `-sh`, `--shuffled_scores`: Path to pre-computed shuffled scores
 
