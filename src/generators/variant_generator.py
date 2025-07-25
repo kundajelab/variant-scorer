@@ -47,6 +47,8 @@ class VariantGenerator(Sequence):
             allele2_seq = flank[:self.flank_size] + allele2 + flank[self.flank_size+len(allele2):]
 
         ### handle INDELS (allele1 must be the reference allele)
+        # Here, we adjust the flanks to account for the INDEL and insure that
+        # the allele1 and allele2 sequences are the same length
         else:
             ### hg19 has lower case
             assert len(allele1) != len(allele2)

@@ -1,0 +1,5 @@
+[tool.pytest.ini_options]
+markers = [
+    "gpu: tests that require GPU hardware",
+    "oak: tests required to be run on Oak"
+]
