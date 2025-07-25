@@ -1,7 +1,6 @@
 import pandas as pd
 import pybedtools
 from utils.argmanager import *
-from utils.helpers import *
 from utils.io import *
 pd.set_option('display.max_columns', 20)
 
@@ -48,8 +47,9 @@ def main():
     # Process overlaps between variants and provided genes
     if args.genes:
         print("annotating with closest genes")
-        gene_df = pd.read_table(genes, header=None)
-        gene_bed = pybedtools.BedTool.from_dataframe(gene_df)
+
+        gene_bed = load_genes(genes)
+
         closest_genes_bed = variant_bed.closest(gene_bed, d=True, t='first', k=3)
 
         closest_gene_df = closest_genes_bed.to_dataframe(header=None)
@@ -89,9 +89,9 @@ def main():
     # Process overlaps between variants and provided peak regions
     if args.peaks:
         print("annotating with peak overlap")
-        peak_df = pd.read_table(peak_path, header=None)
-        print(peak_df.head())
-        peak_bed = pybedtools.BedTool.from_dataframe(peak_df)
+        
+        peak_bed = load_peaks(peak_path)
+        
         peak_intersect_bed = variant_bed.intersect(peak_bed, wa=True, u=True)
 
         peak_intersect_df = peak_intersect_bed.to_dataframe(names=variant_scores_bed_format.columns.tolist())

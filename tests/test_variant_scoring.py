@@ -13,6 +13,11 @@ class TestVariantScoringCLI:
 		"""Fixture to provide the path to the variant_scoring.py script"""
 		return os.path.join(src, "variant_scoring.py")
 
+	@pytest.fixture(scope="class")
+	def script_path_per_chrom(self, src):
+		"""Fixture to provide the path to the variant_scoring.per_chrom.py script"""
+		return os.path.join(src, "variant_scoring.per_chrom.py")
+
 	@pytest.mark.oak
 	def test_variant_scoring_help(self, script_path):
 		"""Test that variant_scoring.py shows help without errors"""
@@ -137,7 +142,7 @@ class TestVariantScoringCLI:
 
 	@pytest.mark.oak
 	def test_variant_scoring_accuracy(self, out_dir, test_data_dir):
-		"""Test variant scoring accuracy against known CaQTLs (depends on summary test)"""
+		"""Test variant scoring accuracy against known caQTLs (depends on summary test)"""
 		# Check that summary output exists
 		summary_file = os.path.join(out_dir, 'summary.mean.variant_scores.tsv')
 		if not os.path.exists(summary_file):
@@ -181,4 +186,116 @@ class TestVariantScoringCLI:
 		else:
 			pytest.skip("Cannot merge datasets - missing variant_id or dbsnp_rsid column")
 
+	@pytest.mark.gpu
+	@pytest.mark.oak
+	def test_variant_scoring_per_chrom(self, out_dir, script_path_per_chrom, test_data_dir, genome_path, model_paths, chrom_sizes_path):
+		"""Test variant_scoring.per_chrom.py with real genome/model data (requires env vars and GPU)"""
+		if not os.path.exists(script_path_per_chrom):
+			pytest.skip(f"Script {script_path_per_chrom} not found")
+		
+		test_variants = os.path.join(test_data_dir, 'test.chrombpnet.tsv')
+		if not os.path.exists(test_variants):
+			pytest.skip("Test variant file not found")
 
+		# Check inputs
+		input_df = pd.read_csv(test_variants, sep='\t', header=None)
+		chrms = input_df[0].unique()
+
+		# Dictionary of number of variants per chromosome
+		variant_counts = input_df[0].value_counts().to_dict()
+
+		# Run for fold 0
+		model_path = model_paths[0]
+		output_prefix = os.path.join(out_dir, f"fold_0")
+
+		cmd = [
+			sys.executable, script_path_per_chrom,
+			'--list', test_variants,
+			'--genome', genome_path,
+			'--model', model_path,
+			'--out_prefix', output_prefix,
+			'--chrom_sizes', chrom_sizes_path,
+			'--num_shuf', '2',  # Use a small number for testing
+			'--schema', 'chrombpnet',
+			'--no_hdf5'  # Skip HDF5 output for faster testing
+		]
+			
+		result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+	
+		if result.returncode != 0:
+			print(f"STDOUT: {result.stdout}")
+			print(f"STDERR: {result.stderr}")
+	
+		# Check if it completed successfully
+		assert result.returncode == 0, f"Script failed: {result.stderr}"
+		
+		# Check output files exist
+		df_list = []
+		for chr in chrms:
+			output_file = f"{output_prefix}.{chr}.variant_scores.tsv"
+			assert os.path.exists(output_file), f"Output file for {chr} not created"
+
+			df = pd.read_csv(output_file, sep='\t')
+			assert 'logfc' in df.columns, "Missing logfc column"
+			assert 'jsd' in df.columns, "Missing jsd column"
+
+			# Check that we have the right number of variants
+			expected_count = variant_counts.get(chr, 0)
+			assert len(df) == expected_count, f"Output for {chr} has {len(df)} variants, expected {expected_count}"
+
+			df_list.append(df)
+
+	@pytest.mark.gpu
+	@pytest.mark.oak
+	def test_merge_chroms(self, out_dir, script_path_per_chrom, test_data_dir, genome_path, model_paths, chrom_sizes_path):
+		"""Test variant_scoring.per_chrom.py with real genome/model data (requires env vars and GPU)"""
+		if not os.path.exists(script_path_per_chrom):
+			pytest.skip(f"Script {script_path_per_chrom} not found")
+		
+		test_variants = os.path.join(test_data_dir, 'test.chrombpnet.tsv')
+		if not os.path.exists(test_variants):
+			pytest.skip("Test variant file not found")
+
+		# Check inputs
+		input_df = pd.read_csv(test_variants, sep='\t', header=None)
+		chrms = input_df[0].unique()
+
+		# Dictionary of number of variants per chromosome
+		variant_counts = input_df[0].value_counts().to_dict()
+
+		# Run for fold 0
+		model_path = model_paths[0]
+		output_prefix = os.path.join(out_dir, f"merged_fold_0")
+
+		cmd = [
+			sys.executable, script_path_per_chrom,
+			'--list', test_variants,
+			'--genome', genome_path,
+			'--model', model_path,
+			'--out_prefix', output_prefix,
+			'--chrom_sizes', chrom_sizes_path,
+			'--num_shuf', '2',  # Use a small number for testing
+			'--schema', 'chrombpnet',
+			'--no_hdf5',  # Skip HDF5 output for faster testing
+			"--merge"
+		]
+			
+		result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+	
+		if result.returncode != 0:
+			print(f"STDOUT: {result.stdout}")
+			print(f"STDERR: {result.stderr}")
+	
+		# Check if it completed successfully
+		assert result.returncode == 0, f"Script failed: {result.stderr}"
+
+		# Load file
+		output_file = f"{output_prefix}.variant_scores.tsv"
+		df = pd.read_csv(output_file, sep='\t')
+
+		assert 'logfc' in df.columns, "Missing logfc column"
+		assert 'jsd' in df.columns, "Missing jsd column"
+
+		# Check number of variants
+		input_df = pd.read_csv(test_variants, sep='\t', header=None)
+		assert len(df) == len(input_df), "Merged output has different number of variants than input"

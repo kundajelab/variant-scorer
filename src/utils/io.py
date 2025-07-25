@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import pybedtools
 from scipy.spatial.distance import jensenshannon
 
 
@@ -88,3 +89,23 @@ def add_missing_columns_to_peaks_df(peaks, schema):
     peaks['summit'] = (peaks['end'] - peaks['start']) // 2
     
     return peaks
+
+
+def load_genes(genes_file):
+    """Load genes from file and return as pybedtools BedTool object."""
+
+    gene_df = pd.read_table(genes_file, header=None)
+    print(gene_df.head())
+    gene_bed = pybedtools.BedTool.from_dataframe(gene_df)
+
+    return gene_bed
+
+
+def load_peaks(peaks_file):
+    """Load peaks from file and return as pybedtools BedTool object."""
+    
+    peak_df = pd.read_table(peaks_file, header=None)
+    print(peak_df.head())
+    peak_bed = pybedtools.BedTool.from_dataframe(peak_df)
+
+    return peak_bed

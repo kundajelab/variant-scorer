@@ -109,7 +109,7 @@ The variant scores are stored in `<out_prefix>.variant_scores.tsv`.
 Predicted effects are computed as `allele2` vs `allele1`. For each variant, we 
 compute the following metrics, as described in the [ChromPBNet preprint](https://www.biorxiv.org/content/10.1101/2024.12.25.630221v1.full.pdf+html):
 
-- `logfc`: Log fold-change of total predicted coverage for `allele2` vs `allele1`, providing a canonical effect size of the variant on local accessibility. A higher `logFC` indicates higher predicted accessibility for `allele2` compared to `allele1`.
+- `logfc`: Log (base 2) fold-change of total predicted coverage for `allele2` vs `allele1`, providing a canonical effect size of the variant on local accessibility. A higher `logFC` indicates higher predicted accessibility for `allele2` compared to `allele1`.
 - `abs_logfc`: Absolute value of the log fold-change.
 - `active_allele_quantile`: Active Allele Quantile is the percentile of the predicted total coverage of the stronger allele relative to the distribution of predicted total coverage across all ATAC-seq/DNase-seq peaks.  
 - `jsd`: Jensen-Shannon distance between the bias-corrected base-resolution probability profiles of the two alleles, which captures effects on profile shape, such as changes in TF footprints.

@@ -20,3 +20,8 @@ tests/data/raw
 
 .vscode
 test/output
+
+
+*/.ipynbs_checkpoints
+*/*/.ipynb_checkpoints
+*/*/*/.ipynb_checkpoints
