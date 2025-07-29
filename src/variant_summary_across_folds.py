@@ -2,7 +2,11 @@ import pandas as pd
 import numpy as np
 import os
 from utils.argmanager import *
-from utils.helpers import *
+from utils.io import *
+
+
+def geo_mean_overflow(iterable, axis=0):
+	return np.exp(np.log(iterable).mean(axis=0))
 
 
 def main():
@@ -15,7 +19,10 @@ def main():
     score_dict = {}
     for i in range(len(variant_table_list)):
         variant_score_file = os.path.join(variant_score_dir, variant_table_list[i])
-        assert os.path.isfile(variant_score_file)
+        
+        if not os.path.isfile(variant_score_file):
+            raise FileNotFoundError(f"Variant score file not found: {variant_score_file}")
+        
         var_score = pd.read_table(variant_score_file)
         score_dict[i] = var_score
 

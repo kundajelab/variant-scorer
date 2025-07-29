@@ -1,0 +1,7 @@
+chr1	976210	976216	motif_aa	0	+	pos
+chr1	1038815	1038820	motif_cc	0	+	pos
+chr1	1038843	1038848	motif_dd	0	+	neg
+chr1	1038840	1038846	motif_dd	0	+	neg
+chr2	554530	554537	motif_cc	0	-	neg
+chr2	554528	554539	motif_gg	0	-	pos
+chr2	727250	727259	motif_hh	0	+	pos

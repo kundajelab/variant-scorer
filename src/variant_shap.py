@@ -1,18 +1,19 @@
+import pandas as pd
+import numpy as np
+import os
+import argparse
+import scipy.stats
+from scipy.spatial.distance import jensenshannon
 from tensorflow.keras.utils import get_custom_objects
 from tensorflow.keras.models import load_model
 import tensorflow as tf
-import scipy.stats
-from scipy.spatial.distance import jensenshannon
-import pandas as pd
-import os
-import argparse
-import numpy as np
 import h5py
 import math
 from generators.variant_generator import VariantGenerator
 from generators.peak_generator import PeakGenerator
 from utils import argmanager, losses
 from utils.helpers import *
+from utils.io import *
 import shap
 from utils.shap_utils import *
 import deepdish as dd

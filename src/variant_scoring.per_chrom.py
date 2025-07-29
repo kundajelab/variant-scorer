@@ -4,6 +4,7 @@ import numpy as np
 import h5py
 from utils import argmanager
 from utils.helpers import *
+from utils.io import *
 
 
 def main():
@@ -239,6 +240,9 @@ def main():
         if os.path.isfile(chrom_scores_file):
             chrom_variants_table_loaded = pd.read_table(chrom_scores_file)
             if chrom_variants_table_loaded['variant_id'].tolist() == chrom_variants_table['variant_id'].tolist():
+
+                print("Loaded existing chrom scores file:", chrom_scores_file)
+
                 chrom_scores_done = True
 
         if not chrom_scores_done:
@@ -348,6 +352,33 @@ def main():
             print("Output " + str(chrom) + " score table shape:", chrom_variants_table.shape)
             print()
             chrom_variants_table.to_csv(chrom_scores_file, sep="\t", index=False)
+
+    # merge all per-chromosome predictions if requested
+    if args.merge:
+        print("Merging all per-chromosome predictions...")
+        merged_dfs = []
+        
+        for chrom in todo_chroms:
+            chrom_scores_file = '.'.join([args.out_prefix, str(chrom), "variant_scores.tsv"])
+            if os.path.isfile(chrom_scores_file):
+                chrom_df = pd.read_table(chrom_scores_file)
+                merged_dfs.append(chrom_df)
+                print(f"Added {chrom}: {len(chrom_df)} variants")
+
+                # remove the per-chromosome scores file
+                print(f"Removing {chrom_scores_file}...")
+                os.remove(chrom_scores_file)
+            else:
+                print(f"Warning: {chrom_scores_file} not found, skipping")
+        
+        if merged_dfs:
+            merged_df = pd.concat(merged_dfs, ignore_index=True)
+            merged_file = '.'.join([args.out_prefix, "variant_scores.tsv"])
+            merged_df.to_csv(merged_file, sep="\t", index=False)
+            print(f"Merged scores for {len(merged_dfs)} chromosomes into {merged_file}")
+            print(f"Total variants: {len(merged_df)}")
+        else:
+            print("No chromosome files found to merge")
 
     print("DONE")
     print()
