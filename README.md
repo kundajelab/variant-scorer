@@ -54,10 +54,7 @@ chr1	866281	-	CT	1_866281_CTins
 ## 1. Score variants: `variant_scoring.py`
 
 This script takes a list of variants in various input formats and generates scores
-for the variants using a ChromBPNet model. The output is a TSV file containing the scores for each variant. 
-Since variants are stored in memory, we also provide `variant_scoring.per_chrom.py` to score variants on a per-chromosome basis,
-and write the scores per chromosome to file before proceeding to the next chromosome. Per-chromosome
-files can then be merged automatically using the `--merge` option.
+for the variants using a ChromBPNet model. The output is a TSV file containing the scores for each variant.
 
 ### Usage:
 
@@ -81,7 +78,6 @@ python src/variant_scoring.py --list [VARIANTS_FILE] \
 - `-m`, `--model` (**required**): Path to the ChromBPNet model .h5 file to use for variant scoring. For most use cases, this should be the bias-corrected model (chrombpnet_nobias.h5)
 - `-o`, `--out_prefix` (**required**): Output prefix for storing SNP effect score predictions from the script, in the form of `<path>/<prefix>`. Directory should already exist.
 - `-s`, `--chrom_sizes` (**required**): Path to TSV file with chromosome sizes
-- `--no_hdf5`: Do not save basepair resolution predictions to hdf5 file. Recommended for large variant lists.
 - `-ps`, `--peak_chrom_sizes`: Path to TSV file with chromosome sizes for peak genome
 - `-b`, `--bias`: Bias model to use for variant scoring
 - `-li`, `--lite`: Models were trained with chrombpnet-lite
@@ -94,11 +90,12 @@ python src/variant_scoring.py --list [VARIANTS_FILE] \
 - `-mp`, `--max_peaks`: Maximum number of peaks to use for peak percentile calculation
 - `-c`, `--chrom`: Only score SNPs in selected chromosome
 - `-r`, `--random_seed`: Random seed for reproducibility when sampling
-- `--no_hdf5`: Do not save detailed predictions in hdf5 file
 - `-nc`, `--num_chunks`: Number of chunks to divide SNP file into
 - `-fo`, `--forward_only`: Run variant scoring only on forward sequence (Default: False)
 - `-st`, `--shap_type`: ChromBPNet output for which SHAP values should be computed (`counts` or `profile`). Default is `counts`
 - `-sh`, `--shuffled_scores`: Path to pre-computed shuffled scores
+- `--no_hdf5`: Do not save base-pair resolution predictions to HDF5 file. Recommended for large variant lists.
+- `--merge`: Merge all per-chromosome output files into a single file, then delete the per-chromosome files. Only relevant when using `variant_scoring.per_chrom.py`. Default: False.
 
 
 
@@ -126,6 +123,29 @@ We provide several additional metrics that are computed as the product of the ab
 *__NOTE__*: For profile predictions, the saved arrays consist of model logits, not probabilities. This allows for averaging profile predictions across folds more easily, by averaging logits over folds and then taking the softmax (see [`variant-scorer/pull/23`](https://github.com/kundajelab/variant-scorer/pull/23)).
 
 
+### Per-chromosome scoring for large variant sets: `variant_scoring.per_chrom.py`
+
+For large variant lists, `variant_scoring.per_chrom.py` runs scoring per chromosome, which allows for parallelization and lower memory usage.
+
+It accepts the same arguments as `variant_scoring.py`. The key additional argument is:
+
+- `--merge`: After all chromosomes are scored, concatenate the per-chromosome output files into a single merged file and delete the per-chromosome files. Without `--merge`, per-chromosome files are left on disk for manual inspection or merging.
+
+#### Outputs
+
+Without `--merge`, outputs are written per chromosome:
+
+- `<out_prefix>.<chrom>.variant_scores.tsv` — scores for variants on that chromosome
+- `<out_prefix>.<chrom>.variant_predictions.h5` — base-pair resolution predictions (unless `--no_hdf5`)
+
+With `--merge`, the per-chromosome files are concatenated and removed, leaving:
+
+- `<out_prefix>.variant_scores.tsv` — scores for all variants across all chromosomes
+- `<out_prefix>.variant_predictions.h5` — concatenated predictions (unless `--no_hdf5`), with structure:
+  - `observed/allele1_pred_counts`: shape `(N variants,)`
+  - `observed/allele2_pred_counts`: shape `(N variants,)`
+  - `observed/allele1_pred_profiles`: shape `(N variants, output_len)` — model logits
+  - `observed/allele2_pred_profiles`: shape `(N variants, output_len)` — model logits
 
 
 ## 2. Summarize variant scores across model folds: `variant_summary_across_folds.py`
