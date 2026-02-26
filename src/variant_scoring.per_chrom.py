@@ -5,6 +5,7 @@ import h5py
 from utils import argmanager
 from utils.helpers import *
 from utils.io import *
+from utils.merge import merge_h5_predictions
 
 
 def main():
@@ -355,7 +356,10 @@ def main():
 
     # merge all per-chromosome predictions if requested
     if args.merge:
-        print("Merging all per-chromosome predictions...")
+        
+        # Handle scores
+        print("Merging all per-chromosome scores...")
+
         merged_dfs = []
         
         for chrom in todo_chroms:
@@ -378,7 +382,16 @@ def main():
             print(f"Merged scores for {len(merged_dfs)} chromosomes into {merged_file}")
             print(f"Total variants: {len(merged_df)}")
         else:
-            print("No chromosome files found to merge")
+            print("No chromosome score files found to merge")
+
+        # Handle prediction hdf5s
+        if not args.no_hdf5:
+
+            print("Merging all per-chromosome predictions...")
+
+            chrom_h5_files = ['.'.join([args.out_prefix, str(chrom), "variant_predictions.h5"]) for chrom in todo_chroms]
+            merged_h5_file = '.'.join([args.out_prefix, "variant_predictions.h5"])
+            merge_h5_predictions(chrom_h5_files, merged_h5_file)
 
     print("DONE")
     print()

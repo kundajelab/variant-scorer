@@ -53,3 +53,9 @@ Or, to skip all the tests that require Oak data, use:
 ```bash
 pytest -rs -s -m "not oak"
 ```
+
+Or, run a specific test:
+
+```bash
+pytest -rs -s tests/test_variant_scoring.py::TestVariantScoringCLI::test_variant_scoring_per_chrom
+```
