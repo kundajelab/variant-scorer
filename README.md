@@ -123,6 +123,46 @@ We provide several additional metrics that are computed as the product of the ab
 *__NOTE__*: For profile predictions, the saved arrays consist of model logits, not probabilities. This allows for averaging profile predictions across folds more easily, by averaging logits over folds and then taking the softmax (see [`variant-scorer/pull/23`](https://github.com/kundajelab/variant-scorer/pull/23)).
 
 
+### Null model and p-values
+
+P-values are computed empirically by comparing observed scores against a **dinucleotide-shuffled null distribution**. For each shuffled replicate, the flanking sequences around a variant are shuffled while preserving dinucleotide frequencies (using `dinuc_shuffle` from DeepLIFT), and the alleles themselves are left unchanged. This breaks local sequence context while keeping the same base composition, providing a null model for what scores would look like if the variant's surrounding sequence had no structured signal.
+
+#### Controlling the null distribution
+
+- `--num_shuf N` (default: 10): Generate N shuffled replicates per variant. Total shuffles = N × number of variants.
+- `--total_shuf T`: Generate exactly T shuffles total, sampled from the variant list (with replacement). Overrides `--num_shuf`.
+- `--shuffled_scores FILE`: Provide pre-computed shuffled scores from a previous run. The pipeline will reuse them if the variant IDs match, avoiding redundant compute.
+
+Larger N/T yields a finer-grained null distribution and more precise p-values, at the cost of additional compute.
+
+#### P-value computation
+
+P-values are rank-based: for each observed score, its p-value is `(rank in null + 1) / (N shuffles + 1)`. Tests are one- or two-tailed depending on the metric:
+
+| Column | Test |
+|---|---|
+| `logfc.pval` | two-tailed |
+| `abs_logfc.pval` | one-tailed (right) |
+| `jsd.pval` | one-tailed (right) |
+| `logfc_x_jsd.pval` | two-tailed |
+| `abs_logfc_x_jsd.pval` | one-tailed (right) |
+
+When peaks are provided (`--peaks`), the following are also computed:
+
+| Column | Test |
+|---|---|
+| `active_allele_quantile.pval` | one-tailed (right) |
+| `quantile_change.pval` | two-tailed |
+| `abs_quantile_change.pval` | one-tailed (right) |
+| `logfc_x_active_allele_quantile.pval` | two-tailed |
+| `abs_logfc_x_active_allele_quantile.pval` | one-tailed (right) |
+| `jsd_x_active_allele_quantile.pval` | one-tailed (right) |
+| `logfc_x_jsd_x_active_allele_quantile.pval` | two-tailed |
+| `abs_logfc_x_jsd_x_active_allele_quantile.pval` | one-tailed (right) |
+
+P-value columns are absent from the output if no shuffled scores were computed (i.e., `--num_shuf 0` and no `--shuffled_scores`).
+
+
 ### Per-chromosome scoring for large variant sets: `variant_scoring.per_chrom.py`
 
 For large variant lists, `variant_scoring.per_chrom.py` runs scoring per chromosome, which allows for parallelization and lower memory usage.
