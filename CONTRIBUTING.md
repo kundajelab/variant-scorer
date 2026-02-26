@@ -9,6 +9,25 @@ Download and processing of these variants to prepare the test data is documented
 at `scripts/get_caqtl_data.sh`.
 
 
+## Environment setup
+
+Create the conda environment from the provided spec:
+
+```bash
+conda env create -f environment.yml
+conda activate variant-scorer
+```
+
+For GPU support (required for running models), replace the default PyTorch install with
+the CUDA-enabled build matching your driver. For example, for CUDA 12.1:
+
+```bash
+pip install torch --index-url https://download.pytorch.org/whl/cu121
+```
+
+See https://pytorch.org/get-started/locally/ for the right command for your system.
+
+
 ## Unit testing
 
 Unit testing is set up with `pytest`.
@@ -22,12 +41,10 @@ For example, to run the tests on Sherlock, request an interactive node with a GP
 sh_dev -g 1 -t 120
 ```
 
-Activate your associated conda environment for the `variant-scorer` repo. (Install `pytest`
-there if needed.)
+Activate the conda environment:
 
 ```bash
 conda activate variant-scorer
-pip install pytest
 ```
 
 Check the output of your `OAK` variable:

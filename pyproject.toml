@@ -1,4 +1,12 @@
+[project]
+name = "variant-scorer"
+version = "0.1.0"
+description = "Predict functional impact of genetic variants using ChromBPNet models"
+requires-python = ">=3.10"
+
 [tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
 markers = [
     "gpu: tests that require GPU hardware",
     "oak: tests required to be run on Oak"

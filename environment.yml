@@ -1,0 +1,23 @@
+name: variant-scorer
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy>=1.24,<2.0
+  - pandas>=2.0
+  - scipy>=1.10
+  - h5py>=3.7
+  - pyfaidx>=0.7
+  - tqdm>=4.0
+  - pybedtools>=0.9
+  - pytest>=7.0
+  - pip
+  - pip:
+    # PyTorch: the entry below installs the CPU-only build from PyPI.
+    # For GPU support, replace after env creation with the appropriate CUDA wheel, e.g.:
+    #   pip install torch --index-url https://download.pytorch.org/whl/cu121
+    # See https://pytorch.org/get-started/locally/ for all options.
+    - torch>=2.0
+    - tangermeme>=1.0
+    - bpnetlite>=0.8

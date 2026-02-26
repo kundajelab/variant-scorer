@@ -28,52 +28,55 @@ class TestOneHotConversion:
         """Test conversion of multiple sequences"""
         seqs = ["ATCG", "GCTA", "AAAA"]
         result = dna_to_one_hot(seqs)
-        
+
         assert result.shape == (3, 4, 4)
-        
+
+        # Channels-first (4, L): rows are A/C/G/T channels, columns are positions
         # Check first sequence "ATCG"
-        expected_first = [[1, 0, 0, 0],  # A
-                         [0, 0, 0, 1],  # T
-                         [0, 1, 0, 0],  # C
-                         [0, 0, 1, 0]]  # G
+        expected_first = [[1, 0, 0, 0],  # A: pos 0
+                          [0, 0, 1, 0],  # C: pos 2
+                          [0, 0, 0, 1],  # G: pos 3
+                          [0, 1, 0, 0]]  # T: pos 1
         np.testing.assert_array_equal(result[0], expected_first)
 
-		# Check second sequence "GCTA"
-        expected_second = [[0, 0, 1, 0],  # G
-						  [0, 1, 0, 0],  # C
-						  [0, 0, 0, 1],  # T
-						  [1, 0, 0, 0]]
+        # Check second sequence "GCTA"
+        expected_second = [[0, 0, 0, 1],  # A: pos 3
+                           [0, 1, 0, 0],  # C: pos 1
+                           [1, 0, 0, 0],  # G: pos 0
+                           [0, 0, 1, 0]]  # T: pos 2
         np.testing.assert_array_equal(result[1], expected_second)
 
         # Check third sequence "AAAA"
-        expected_third = [[1, 0, 0, 0],  # A
-                         [1, 0, 0, 0],  # A
-                         [1, 0, 0, 0],  # A
-                         [1, 0, 0, 0]]  # A
+        expected_third = [[1, 1, 1, 1],  # A: all positions
+                          [0, 0, 0, 0],  # C: absent
+                          [0, 0, 0, 0],  # G: absent
+                          [0, 0, 0, 0]]  # T: absent
         np.testing.assert_array_equal(result[2], expected_third)
     
     def test_dna_to_one_hot_lowercase(self):
         """Test that lowercase sequences are converted to uppercase"""
         seqs = ["atcg"]
         result = dna_to_one_hot(seqs)
-        
-        expected = np.array([[[1, 0, 0, 0],  # A
-                              [0, 0, 0, 1],  # T
-                              [0, 1, 0, 0],  # C
-                              [0, 0, 1, 0]]], dtype=np.int8)  # G
-        
+
+        # Channels-first (N, 4, L)
+        expected = np.array([[[1, 0, 0, 0],  # A: pos 0
+                              [0, 0, 1, 0],  # C: pos 2
+                              [0, 0, 0, 1],  # G: pos 3
+                              [0, 1, 0, 0]]], dtype=np.int8)  # T: pos 1
+
         np.testing.assert_array_equal(result, expected)
     
     def test_dna_to_one_hot_invalid_bases(self):
         """Test that invalid bases get all-zero encoding"""
         seqs = ["ANCG"]  # N is not a valid base
         result = dna_to_one_hot(seqs)
-        
-        expected = np.array([[[1, 0, 0, 0],  # A
-                              [0, 0, 0, 0],  # N -> all zeros
-                              [0, 1, 0, 0],  # C
-                              [0, 0, 1, 0]]], dtype=np.int8)  # G
-        
+
+        # Channels-first (N, 4, L): N at pos 1 contributes zeros to all channels
+        expected = np.array([[[1, 0, 0, 0],  # A: pos 0
+                              [0, 0, 1, 0],  # C: pos 2
+                              [0, 0, 0, 1],  # G: pos 3
+                              [0, 0, 0, 0]]], dtype=np.int8)  # T: absent
+
         np.testing.assert_array_equal(result, expected)
     
     def test_one_hot_to_dna_simple(self):
@@ -90,30 +93,32 @@ class TestOneHotConversion:
     
     def test_one_hot_to_dna_multiple_sequences(self):
         """Test conversion of multiple one-hot sequences"""
-        one_hot = np.array([[[1, 0, 0, 0],  # A
-                             [0, 0, 0, 1],  # T
-                             [0, 1, 0, 0],  # C
-                             [0, 0, 1, 0]], # G
-                            [[0, 0, 1, 0],  # G
-                             [0, 1, 0, 0],  # C
-                             [0, 0, 0, 1],  # T
-                             [1, 0, 0, 0]]], dtype=np.int8)  # A
-        
+        # Channels-first (N, 4, L): rows are A/C/G/T channels
+        one_hot = np.array([[[1, 0, 0, 0],  # A: pos 0
+                             [0, 0, 1, 0],  # C: pos 2
+                             [0, 0, 0, 1],  # G: pos 3
+                             [0, 1, 0, 0]], # T: pos 1  → "ATCG"
+                            [[0, 0, 0, 1],  # A: pos 3
+                             [0, 1, 0, 0],  # C: pos 1
+                             [1, 0, 0, 0],  # G: pos 0
+                             [0, 0, 1, 0]]], dtype=np.int8)  # T: pos 2  → "GCTA"
+
         result = one_hot_to_dna(one_hot)
         expected = ["ATCG", "GCTA"]
-        
+
         assert result == expected
     
     def test_one_hot_to_dna_all_zeros(self):
         """Test that all-zero encodings convert to N"""
-        one_hot = np.array([[[1, 0, 0, 0],  # A
-                             [0, 0, 0, 0],  # all zeros -> N
-                             [0, 1, 0, 0],  # C
-                             [0, 0, 1, 0]]], dtype=np.int8)  # G
-        
+        # Channels-first (N, 4, L): N at pos 1 → all channels have 0 at pos 1
+        one_hot = np.array([[[1, 0, 0, 0],  # A: pos 0
+                             [0, 0, 1, 0],  # C: pos 2
+                             [0, 0, 0, 1],  # G: pos 3
+                             [0, 0, 0, 0]]], dtype=np.int8)  # T: absent → N at pos 1
+
         result = one_hot_to_dna(one_hot)
         expected = ["ANCG"]
-        
+
         assert result == expected
     
     def test_roundtrip_conversion(self):
@@ -149,7 +154,7 @@ class TestOneHotConversion:
         seqs = [""]
         result = dna_to_one_hot(seqs)
         
-        assert result.shape == (1, 0, 4)
+        assert result.shape == (1, 4, 0)
         
         # Test roundtrip
         recovered = one_hot_to_dna(result)

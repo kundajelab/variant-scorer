@@ -1,226 +1,83 @@
-# Av's code with a bit of reformatting
-# Adapted from Zahoor's mtbatchgen
-
-from tensorflow.keras.utils import get_custom_objects
-from tensorflow.keras.models import load_model
-import tensorflow as tf
-import scipy.stats
-from scipy.spatial.distance import jensenshannon
-import pandas as pd
-import os
-import argparse
 import numpy as np
-import h5py
-import math
+import torch
 from tqdm import tqdm
 import sys
 sys.path.append('..')
 from generators.variant_generator import VariantGenerator
-from generators.peak_generator import PeakGenerator
-from utils import argmanager, losses
-import shap
-from deeplift.dinuc_shuffle import dinuc_shuffle
-tf.compat.v1.disable_v2_behavior()
+from bpnetlite.bpnet import CountWrapper, ProfileWrapper
+from bpnetlite.attribute import deep_lift_shap
 
 
-def combine_mult_and_diffref(mult, orig_inp, bg_data):
-    to_return = []
-    
-    for l in [0]:
-        projected_hypothetical_contribs = \
-            np.zeros_like(bg_data[l]).astype("float")
-        assert len(orig_inp[l].shape)==2
-        
-        # At each position in the input sequence, we iterate over the
-        # one-hot encoding possibilities (eg: for genomic sequence, 
-        # this is ACGT i.e. 1000, 0100, 0010 and 0001) and compute the
-        # hypothetical difference-from-reference in each case. We then 
-        # multiply the hypothetical differences-from-reference with 
-        # the multipliers to get the hypothetical contributions. For 
-        # each of the one-hot encoding possibilities, the hypothetical
-        # contributions are then summed across the ACGT axis to 
-        # estimate the total hypothetical contribution of each 
-        # position. This per-position hypothetical contribution is then
-        # assigned ("projected") onto whichever base was present in the
-        # hypothetical sequence. The reason this is a fast estimate of
-        # what the importance scores *would* look like if different 
-        # bases were present in the underlying sequence is that the
-        # multipliers are computed once using the original sequence, 
-        # and are not computed again for each hypothetical sequence.
-        for i in range(orig_inp[l].shape[-1]):
-            hypothetical_input = np.zeros_like(orig_inp[l]).astype("float")
-            hypothetical_input[:, i] = 1.0
-            hypothetical_difference_from_reference = \
-                (hypothetical_input[None, :, :] - bg_data[l])
-            hypothetical_contribs = hypothetical_difference_from_reference * \
-                                    mult[l]
-            projected_hypothetical_contribs[:, :, i] = \
-                np.sum(hypothetical_contribs, axis=-1) 
-            
-        to_return.append(np.mean(projected_hypothetical_contribs,axis=0))
+def fetch_shap(model, variants_table, input_len, genome_fasta, batch_size,
+               debug_mode=False, lite=False, bias=None, shuf=False,
+               shap_type="counts"):
+    """Compute DeepLIFT-SHAP contribution scores for variant sequences.
 
-    if len(orig_inp)>1:
-        to_return.append(np.zeros_like(orig_inp[1]))
-    
-    return to_return
+    Parameters
+    ----------
+    model: torch.nn.Module
+        A BPNet model loaded via BPNet.from_chrombpnet(). Will be wrapped
+        with CountWrapper (counts SHAP) or ProfileWrapper (profile SHAP).
+    variants_table: pd.DataFrame
+    input_len: int
+    genome_fasta: str
+    batch_size: int
+    shap_type: str
+        'counts' or 'profile'
 
-
-def shuffle_several_times(s):
-    numshuffles=20
-    if len(s)==2:
-        return [np.array([dinuc_shuffle(s[0]) for i in range(numshuffles)]),
-                np.array([s[1] for i in range(numshuffles)])]
-    else:
-        return [np.array([dinuc_shuffle(s[0]) for i in range(numshuffles)])]
-
-
-def get_weightedsum_meannormed_logits(model):
-    # See Google slide deck for explanations
-    # We meannorm as per section titled 
-    # "Adjustments for Softmax Layers" in the DeepLIFT paper
-    meannormed_logits = (model.outputs[0] - \
-                         tf.reduce_mean(model.outputs[0], axis=1)[:, None])
-
-    # 'stop_gradient' will prevent importance from being propagated
-    # through this operation; we do this because we just want to treat
-    # the post-softmax probabilities as 'weights' on the different 
-    # logits, without having the network explain how the probabilities
-    # themselves were derived. Could be worth contrasting explanations
-    # derived with and without stop_gradient enabled...
-    stopgrad_meannormed_logits = tf.stop_gradient(meannormed_logits)
-    softmax_out = tf.nn.softmax(stopgrad_meannormed_logits, axis=1)
-    
-    # Weight the logits according to the softmax probabilities, take
-    # the sum for each example. This mirrors what was done for the
-    # bpnet paper.
-    weightedsum_meannormed_logits = tf.reduce_sum(softmax_out * \
-                                                  meannormed_logits,
-                                                  axis=1)
-    
-    return weightedsum_meannormed_logits
-
-
-def fetch_shap(model, variants_table, input_len, genome_fasta, batch_size, debug_mode=False, lite=False, bias=None, shuf=False,shap_type="counts"):
-    variant_ids = []
-    allele1_counts_shap = []
-    allele2_counts_shap = []
-    allele1_profile_shap = []
-    allele2_profile_shap = []
-    allele1_inputs = []
-    allele2_inputs = []
-
-    # variant sequence generator
-    var_gen = VariantGenerator(variants_table=variants_table,
-                           input_len=input_len,
-                           genome_fasta=genome_fasta,
-                           batch_size=batch_size,
-                           debug_mode=False,
-                           shuf=shuf)
-
-    for i in tqdm(range(len(var_gen))):
-
-        batch_variant_ids, allele1_seqs, allele2_seqs = var_gen[i]
-
-        if lite:
-            if shap_type == "counts":
-                counts_model_input = [model.input[0], model.input[2]]
-                allele1_input = [allele1_seqs, np.zeros((allele1_seqs.shape[0], 1))]
-                allele2_input = [allele2_seqs, np.zeros((allele2_seqs.shape[0], 1))]
-
-                profile_model_counts_explainer = shap.explainers.deep.TFDeepExplainer(
-                    (counts_model_input, tf.reduce_sum(model.outputs[1], axis=-1)),
-                    shuffle_several_times,
-                    combine_mult_and_diffref=combine_mult_and_diffref)
-
-                allele1_counts_shap_batch = profile_model_counts_explainer.shap_values(
-                    allele1_input, progress_message=10)
-                allele2_counts_shap_batch = profile_model_counts_explainer.shap_values(
-                    allele2_input, progress_message=10)
-
-                allele1_counts_shap_batch = allele1_counts_shap_batch[0] * allele1_input[0]
-                allele2_counts_shap_batch = allele2_counts_shap_batch[0] * allele2_input[0]
-
-                allele1_counts_shap.extend(allele1_counts_shap_batch)
-                allele2_counts_shap.extend(allele2_counts_shap_batch)
-
-            else:
-                assert shap_type == "profile"
-                profile_model_input = [model.input[0], model.input[1]]
-                outlen = model.output_shape[0][1]
-                
-                allele1_input = [allele1_seqs, np.zeros((allele1_seqs.shape[0], outlen))]
-                allele2_input = [allele2_seqs, np.zeros((allele2_seqs.shape[0], outlen))]
-                
-                weightedsum_meannormed_logits = get_weightedsum_meannormed_logits(model)
-                profile_model_profile_explainer = shap.explainers.deep.TFDeepExplainer(
-                    (profile_model_input, weightedsum_meannormed_logits),
-                    shuffle_several_times,
-                    combine_mult_and_diffref=combine_mult_and_diffref)
-                
-                allele1_profile_shap_batch = profile_model_profile_explainer.shap_values(
-                    allele1_input, progress_message=10)
-                allele2_profile_shap_batch = profile_model_profile_explainer.shap_values(
-                    allele2_input, progress_message=10)
-                
-                allele1_profile_shap_batch = allele1_profile_shap_batch[0] * allele1_input[0]
-                allele2_profile_shap_batch = allele2_profile_shap_batch[0] * allele2_input[0]
-
-                allele1_profile_shap.extend(allele1_profile_shap_batch)
-                allele2_profile_shap.extend(allele2_profile_shap_batch)
-
-        else:
-            allele1_input = allele1_seqs
-            allele2_input = allele2_seqs
-
-            if shap_type == "counts":
-                counts_model_input = model.input
-                profile_model_counts_explainer = shap.explainers.deep.TFDeepExplainer(
-                    (counts_model_input, tf.reduce_sum(model.outputs[1], axis=-1)),
-                    shuffle_several_times,
-                    combine_mult_and_diffref=combine_mult_and_diffref)
-
-                allele1_counts_shap_batch = profile_model_counts_explainer.shap_values(
-                    allele1_input, progress_message=10)
-                allele2_counts_shap_batch = profile_model_counts_explainer.shap_values(
-                    allele2_input, progress_message=10)
-
-                # allele1_counts_shap_batch = allele1_counts_shap_batch * allele1_input
-                # allele2_counts_shap_batch = allele2_counts_shap_batch * allele2_input
-
-                allele1_counts_shap.extend(allele1_counts_shap_batch)
-                allele2_counts_shap.extend(allele2_counts_shap_batch)
-
-                allele1_inputs.extend(allele1_input)
-                allele2_inputs.extend(allele2_input)
-
-            else:
-                assert shap_type == "profile"
-                profile_model_input = model.input
-                weightedsum_meannormed_logits = get_weightedsum_meannormed_logits(model)
-                profile_model_profile_explainer = shap.explainers.deep.TFDeepExplainer(
-                    (profile_model_input, weightedsum_meannormed_logits),
-                    shuffle_several_times,
-                    combine_mult_and_diffref=combine_mult_and_diffref)
-                
-                allele1_profile_shap_batch = profile_model_profile_explainer.shap_values(
-                    allele1_input, progress_message=10)
-                allele2_profile_shap_batch = profile_model_profile_explainer.shap_values(
-                    allele2_input, progress_message=10) 
-
-                # allele1_profile_shap_batch = allele1_profile_shap_batch * allele1_input
-                # allele2_profile_shap_batch = allele2_profile_shap_batch * allele2_input
-
-                allele1_profile_shap.extend(allele1_profile_shap_batch)
-                allele2_profile_shap.extend(allele2_profile_shap_batch)
-
-                allele1_inputs.extend(allele1_input)
-                allele2_inputs.extend(allele2_input)
-
-        variant_ids.extend(batch_variant_ids)
+    Returns
+    -------
+    variant_ids: np.ndarray, shape (N,)
+    allele1_inputs: np.ndarray, shape (N, 4, L)
+    allele2_inputs: np.ndarray, shape (N, 4, L)
+    allele1_shap: np.ndarray, shape (N, 4, L)
+    allele2_shap: np.ndarray, shape (N, 4, L)
+    """
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     if shap_type == "counts":
-        return np.array(variant_ids), np.array(allele1_inputs), np.array(allele2_inputs), \
-               np.array(allele1_counts_shap), np.array(allele2_counts_shap)
+        wrapped = CountWrapper(model).eval().to(device)
     else:
-        return np.array(variant_ids), np.array(allele1_inputs), np.array(allele2_inputs), \
-               np.array(allele1_profile_shap), np.array(allele2_profile_shap)
+        assert shap_type == "profile"
+        wrapped = ProfileWrapper(model).eval().to(device)
+
+    var_gen = VariantGenerator(variants_table=variants_table,
+                               input_len=input_len,
+                               genome_fasta=genome_fasta,
+                               batch_size=batch_size,
+                               debug_mode=False,
+                               shuf=shuf)
+
+    variant_ids = []
+    allele1_inputs = []
+    allele2_inputs = []
+    allele1_shap_list = []
+    allele2_shap_list = []
+
+    for i in tqdm(range(len(var_gen))):
+        batch_variant_ids, allele1_seqs, allele2_seqs = var_gen[i]
+        # seqs shape: (N, 4, L)
+
+        allele1_tensor = torch.tensor(allele1_seqs, dtype=torch.float32)
+        allele2_tensor = torch.tensor(allele2_seqs, dtype=torch.float32)
+
+        allele1_attr = deep_lift_shap(wrapped, allele1_tensor, random_state=0,
+                                      device=device)
+        allele2_attr = deep_lift_shap(wrapped, allele2_tensor, random_state=0,
+                                      device=device)
+
+        # projected SHAP: hypothetical scores multiplied by the one-hot input
+        allele1_projected = (allele1_attr * allele1_tensor).cpu().numpy()
+        allele2_projected = (allele2_attr * allele2_tensor).cpu().numpy()
+
+        allele1_inputs.extend(allele1_seqs)
+        allele2_inputs.extend(allele2_seqs)
+        allele1_shap_list.extend(allele1_projected)
+        allele2_shap_list.extend(allele2_projected)
+        variant_ids.extend(batch_variant_ids)
+
+    return (np.array(variant_ids),
+            np.array(allele1_inputs),
+            np.array(allele2_inputs),
+            np.array(allele1_shap_list),
+            np.array(allele2_shap_list))

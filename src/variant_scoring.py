@@ -20,10 +20,10 @@ def main():
         raise OSError("Output directory does not exist")
 
     # load the model and variants
-    model = load_model_wrapper(args.model)
+    model = load_bpnet_model(args.model)
     variants_table = load_variant_table(args.list, args.schema)
     variants_table = variants_table.fillna('-')
-    
+
     chrom_sizes = pd.read_csv(args.chrom_sizes, header=None, sep='\t', names=['chrom', 'size'])
     chrom_sizes_dict = chrom_sizes.set_index('chrom')['size'].to_dict()
 
@@ -33,11 +33,8 @@ def main():
         variants_table = variants_table.loc[variants_table['chr'] == args.chrom]
         print("Chromosome variants table shape:", variants_table.shape)
 
-    # infer input length
-    if args.lite:
-        input_len = model.input_shape[0][1]
-    else:
-        input_len = model.input_shape[1]
+    # infer input length from model
+    input_len = model.input_len
 
     print("Input length inferred from the model:", input_len)
 

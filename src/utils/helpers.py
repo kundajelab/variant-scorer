@@ -1,6 +1,6 @@
-from tensorflow.keras.utils import get_custom_objects
-from tensorflow.keras.models import load_model
-import tensorflow as tf
+import torch
+import tangermeme.predict
+from bpnetlite import BPNet
 from scipy.spatial.distance import jensenshannon
 import pandas as pd
 import numpy as np
@@ -9,7 +9,7 @@ import sys
 sys.path.append('..')
 from generators.variant_generator import VariantGenerator
 from generators.peak_generator import PeakGenerator
-from utils import losses
+from utils.wrappers import ChromBPNetWrapper
 from utils.io import get_variant_schema, get_peak_schema
 
 
@@ -32,10 +32,6 @@ def get_valid_variants(chrom, pos, allele1, allele2, input_len, chrom_sizes_dict
 		lower_check = (pos - flank > 0)
 		upper_check = (pos + flank <= chrom_sizes_dict[chrom])
 		in_bounds = lower_check and upper_check
-		# no_allele1_indel = (len(allele1) == 1)
-		# no_allele2_indel = (len(allele2) == 1)
-		# no_indel = no_allele1_indel and no_allele2_indel
-		# valid_variant = valid_chrom and in_bounds and no_indel
 		valid_variant = valid_chrom and in_bounds
 		return valid_variant
 	else:
@@ -45,15 +41,25 @@ def softmax(x, temp=1):
 	norm_x = x - np.mean(x, axis=1, keepdims=True)
 	return np.exp(temp*norm_x)/np.sum(np.exp(temp*norm_x), axis=1, keepdims=True)
 
-def load_model_wrapper(model_file):
-	# read .h5 model
-	custom_objects = {"multinomial_nll": losses.multinomial_nll, "tf": tf}
-	get_custom_objects().update(custom_objects)
-	model = load_model(model_file, compile=False)
-	print("model loaded succesfully")
+def load_bpnet_model(model_file):
+	"""Load a ChromBPNet .h5 model file and wrap it with ChromBPNetWrapper.
+
+	Uses bpnetlite's BPNet.from_chrombpnet() to convert the TF .h5 file to
+	a PyTorch model, then wraps it for convenient profile + counts output.
+
+	Sets model.input_len and model.bpnet for downstream access.
+	"""
+	bpnet = BPNet.from_chrombpnet(filename=model_file)
+	model = ChromBPNetWrapper(bpnet)
+	model.eval()
+	# For ChromBPNet models, output_len is always 1000 bp;
+	# bpnet.trimming = (input_len - output_len) // 2, so input_len = 1000 + 2*trimming
+	model.input_len = 1000 + 2 * bpnet.trimming
+	model.bpnet = bpnet
+	print("model loaded successfully")
 	return model
 
-def fetch_peak_predictions(model, peaks, input_len, genome_fasta, batch_size, debug_mode=False, lite=False,forward_only=False):
+def fetch_peak_predictions(model, peaks, input_len, genome_fasta, batch_size, debug_mode=False, lite=False, forward_only=False):
 	peak_ids = []
 	pred_counts = []
 	pred_profiles = []
@@ -68,34 +74,30 @@ def fetch_peak_predictions(model, peaks, input_len, genome_fasta, batch_size, de
 							 batch_size=batch_size,
 							 debug_mode=debug_mode)
 
+	device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
 	for i in tqdm(range(len(peak_gen))):
 		batch_peak_ids, seqs = peak_gen[i]
-		revcomp_seq = seqs[:, ::-1, ::-1]
+		# seqs shape: (N, 4, L) channels-first
+		revcomp_seq = seqs[:, ::-1, ::-1].copy()
 
-		if lite:
-			batch_preds = model.predict([seqs,
-										 np.zeros((len(seqs), model.output_shape[0][1])),
-										 np.zeros((len(seqs), ))],
-										verbose=False)
+		seqs_tensor = torch.tensor(seqs, dtype=torch.float32)
+		revcomp_tensor = torch.tensor(revcomp_seq, dtype=torch.float32)
 
-			if not forward_only:
-				revcomp_batch_preds = model.predict([revcomp_seq,
-											 np.zeros((len(revcomp_seq), model.output_shape[0][1])),
-											 np.zeros((len(revcomp_seq), ))],
-											verbose=False)
-		else:
-			batch_preds = model.predict(seqs, verbose=False)
-			if not forward_only:
-				revcomp_batch_preds = model.predict(revcomp_seq, verbose=False)
+		batch_preds = tangermeme.predict.predict(model, seqs_tensor, device=device)
+		# batch_preds: [profile (N, 1, L) or (N, L), log_counts (N, 1) or (N,)]
+		batch_counts = np.exp(batch_preds[1].squeeze(-1).cpu().numpy())
+		batch_profile = batch_preds[0].squeeze(1).cpu().numpy()
 
-		batch_preds[1] = np.array([batch_preds[1][i] for i in range(len(batch_preds[1]))])
-		pred_counts.extend(np.exp(batch_preds[1]))
-		pred_profiles.extend(np.array(batch_preds[0]))   # np.squeeze(softmax()) to get probability profile
+		pred_counts.extend(batch_counts)
+		pred_profiles.extend(batch_profile)
 
 		if not forward_only:
-			revcomp_batch_preds[1] = np.array([revcomp_batch_preds[1][i] for i in range(len(revcomp_batch_preds[1]))])
-			revcomp_counts.extend(np.exp(revcomp_batch_preds[1]))
-			revcomp_profiles.extend(np.array(revcomp_batch_preds[0]))    # np.squeeze(softmax()) to get probability profile
+			revcomp_preds = tangermeme.predict.predict(model, revcomp_tensor, device=device)
+			revcomp_c = np.exp(revcomp_preds[1].squeeze(-1).cpu().numpy())
+			revcomp_p = revcomp_preds[0].squeeze(1).cpu().numpy()
+			revcomp_counts.extend(revcomp_c)
+			revcomp_profiles.extend(revcomp_p)
 
 		peak_ids.extend(batch_peak_ids)
 
@@ -106,11 +108,11 @@ def fetch_peak_predictions(model, peaks, input_len, genome_fasta, batch_size, de
 	if not forward_only:
 		revcomp_counts = np.array(revcomp_counts)
 		revcomp_profiles = np.array(revcomp_profiles)
-		average_counts = np.average([pred_counts,revcomp_counts],axis=0)
-		average_profiles = np.average([pred_profiles,revcomp_profiles[:,::-1]],axis=0)
-		return peak_ids,average_counts,average_profiles
+		average_counts = np.average([pred_counts, revcomp_counts], axis=0)
+		average_profiles = np.average([pred_profiles, revcomp_profiles[:, ::-1]], axis=0)
+		return peak_ids, average_counts, average_profiles
 	else:
-		return peak_ids,pred_counts,pred_profiles
+		return peak_ids, pred_counts, pred_profiles
 
 def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, batch_size, debug_mode=False, lite=False, shuf=False, forward_only=False):
 	variant_ids = []
@@ -132,52 +134,42 @@ def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, ba
 						   debug_mode=False,
 						   shuf=shuf)
 
+	device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
 	for i in tqdm(range(len(var_gen))):
 
 		batch_variant_ids, allele1_seqs, allele2_seqs = var_gen[i]
-		revcomp_allele1_seqs = allele1_seqs[:, ::-1, ::-1]
-		revcomp_allele2_seqs = allele2_seqs[:, ::-1, ::-1]
+		# seqs shape: (N, 4, L) channels-first
+		revcomp_allele1_seqs = allele1_seqs[:, ::-1, ::-1].copy()
+		revcomp_allele2_seqs = allele2_seqs[:, ::-1, ::-1].copy()
 
-		if lite:
-			allele1_batch_preds = model.predict([allele1_seqs,
-												 np.zeros((len(allele1_seqs), model.output_shape[0][1])),
-												 np.zeros((len(allele1_seqs), ))],
-												verbose=False)
-			allele2_batch_preds = model.predict([allele2_seqs,
-												 np.zeros((len(allele2_seqs), model.output_shape[0][1])),
-												 np.zeros((len(allele2_seqs), ))],
-												verbose=False)
+		allele1_tensor = torch.tensor(allele1_seqs, dtype=torch.float32)
+		allele2_tensor = torch.tensor(allele2_seqs, dtype=torch.float32)
 
-			if not forward_only:
-				revcomp_allele1_batch_preds = model.predict([revcomp_allele1_seqs,
-													 np.zeros((len(revcomp_allele1_seqs), model.output_shape[0][1])),
-													 np.zeros((len(revcomp_allele1_seqs), ))],
-													verbose=False)
-				revcomp_allele2_batch_preds = model.predict([revcomp_allele2_seqs,
-										 np.zeros((len(revcomp_allele2_seqs), model.output_shape[0][1])),
-										 np.zeros((len(revcomp_allele2_seqs), ))],
-										verbose=False)
-		else:
-			allele1_batch_preds = model.predict(allele1_seqs, verbose=False)
-			allele2_batch_preds = model.predict(allele2_seqs, verbose=False)
-			if not forward_only:
-				revcomp_allele1_batch_preds = model.predict(revcomp_allele1_seqs, verbose=False)
-				revcomp_allele2_batch_preds = model.predict(revcomp_allele2_seqs, verbose=False)
+		a1_preds = tangermeme.predict.predict(model, allele1_tensor, device=device)
+		a2_preds = tangermeme.predict.predict(model, allele2_tensor, device=device)
 
-		allele1_batch_preds[1] = np.array([allele1_batch_preds[1][i] for i in range(len(allele1_batch_preds[1]))])
-		allele2_batch_preds[1] = np.array([allele2_batch_preds[1][i] for i in range(len(allele2_batch_preds[1]))])
-		allele1_pred_counts.extend(np.exp(allele1_batch_preds[1]))
-		allele2_pred_counts.extend(np.exp(allele2_batch_preds[1]))
-		allele1_pred_profiles.extend(np.array(allele1_batch_preds[0]))   # np.squeeze(softmax()) to get probability profile
-		allele2_pred_profiles.extend(np.array(allele2_batch_preds[0]))
+		a1_counts = np.exp(a1_preds[1].squeeze(-1).cpu().numpy())
+		a2_counts = np.exp(a2_preds[1].squeeze(-1).cpu().numpy())
+		a1_profiles = a1_preds[0].squeeze(1).cpu().numpy()
+		a2_profiles = a2_preds[0].squeeze(1).cpu().numpy()
+
+		allele1_pred_counts.extend(a1_counts)
+		allele2_pred_counts.extend(a2_counts)
+		allele1_pred_profiles.extend(a1_profiles)
+		allele2_pred_profiles.extend(a2_profiles)
 
 		if not forward_only:
-			revcomp_allele1_batch_preds[1] = np.array([revcomp_allele1_batch_preds[1][i] for i in range(len(revcomp_allele1_batch_preds[1]))])
-			revcomp_allele2_batch_preds[1] = np.array([revcomp_allele2_batch_preds[1][i] for i in range(len(revcomp_allele2_batch_preds[1]))])
-			revcomp_allele1_pred_counts.extend(np.exp(revcomp_allele1_batch_preds[1]))
-			revcomp_allele2_pred_counts.extend(np.exp(revcomp_allele2_batch_preds[1]))
-			revcomp_allele1_pred_profiles.extend(np.array(revcomp_allele1_batch_preds[0]))   # np.squeeze(softmax()) to get probability profile
-			revcomp_allele2_pred_profiles.extend(np.array(revcomp_allele2_batch_preds[0]))
+			rc_a1_tensor = torch.tensor(revcomp_allele1_seqs, dtype=torch.float32)
+			rc_a2_tensor = torch.tensor(revcomp_allele2_seqs, dtype=torch.float32)
+
+			rc_a1_preds = tangermeme.predict.predict(model, rc_a1_tensor, device=device)
+			rc_a2_preds = tangermeme.predict.predict(model, rc_a2_tensor, device=device)
+
+			revcomp_allele1_pred_counts.extend(np.exp(rc_a1_preds[1].squeeze(-1).cpu().numpy()))
+			revcomp_allele2_pred_counts.extend(np.exp(rc_a2_preds[1].squeeze(-1).cpu().numpy()))
+			revcomp_allele1_pred_profiles.extend(rc_a1_preds[0].squeeze(1).cpu().numpy())
+			revcomp_allele2_pred_profiles.extend(rc_a2_preds[0].squeeze(1).cpu().numpy())
 
 		variant_ids.extend(batch_variant_ids)
 
@@ -192,10 +184,10 @@ def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, ba
 		revcomp_allele2_pred_counts = np.array(revcomp_allele2_pred_counts)
 		revcomp_allele1_pred_profiles = np.array(revcomp_allele1_pred_profiles)
 		revcomp_allele2_pred_profiles = np.array(revcomp_allele2_pred_profiles)
-		average_allele1_pred_counts = np.average([allele1_pred_counts,revcomp_allele1_pred_counts],axis=0)
-		average_allele1_pred_profiles = np.average([allele1_pred_profiles,revcomp_allele1_pred_profiles[:,::-1]],axis=0)
-		average_allele2_pred_counts = np.average([allele2_pred_counts,revcomp_allele2_pred_counts],axis=0)
-		average_allele2_pred_profiles = np.average([allele2_pred_profiles,revcomp_allele2_pred_profiles[:,::-1]],axis=0)
+		average_allele1_pred_counts = np.average([allele1_pred_counts, revcomp_allele1_pred_counts], axis=0)
+		average_allele1_pred_profiles = np.average([allele1_pred_profiles, revcomp_allele1_pred_profiles[:, ::-1]], axis=0)
+		average_allele2_pred_counts = np.average([allele2_pred_counts, revcomp_allele2_pred_counts], axis=0)
+		average_allele2_pred_profiles = np.average([allele2_pred_profiles, revcomp_allele2_pred_profiles[:, ::-1]], axis=0)
 		return variant_ids, average_allele1_pred_counts, average_allele2_pred_counts, \
 			   average_allele1_pred_profiles, average_allele2_pred_profiles
 	else:
@@ -203,10 +195,7 @@ def fetch_variant_predictions(model, variants_table, input_len, genome_fasta, ba
 			   allele1_pred_profiles, allele2_pred_profiles
 
 def get_variant_scores_with_peaks(allele1_pred_counts, allele2_pred_counts,
-					   allele1_pred_profiles, allele2_pred_profiles, pred_counts):
-	# logfc = np.log2(allele2_pred_counts / allele1_pred_counts)
-	# jsd = np.array([jensenshannon(x,y,base=2.0) for x,y in zip(allele2_pred_profiles, allele1_pred_profiles)])
-
+				   allele1_pred_profiles, allele2_pred_profiles, pred_counts):
 	logfc, jsd = get_variant_scores(allele1_pred_counts, allele2_pred_counts,
 									allele1_pred_profiles, allele2_pred_profiles)
 	allele1_quantile = np.array([np.max([np.mean(pred_counts < x), (1/len(pred_counts))]) for x in allele1_pred_counts])
@@ -215,7 +204,7 @@ def get_variant_scores_with_peaks(allele1_pred_counts, allele2_pred_counts,
 	return logfc, jsd, allele1_quantile, allele2_quantile
 
 def get_variant_scores(allele1_pred_counts, allele2_pred_counts,
-					   allele1_pred_profiles, allele2_pred_profiles):
+				   allele1_pred_profiles, allele2_pred_profiles):
 
 	print('allele1_pred_counts shape:', allele1_pred_counts.shape)
 	print('allele2_pred_counts shape:', allele2_pred_counts.shape)
@@ -333,4 +322,3 @@ def get_pvals(obs, bg, tail):
 	pval_both = min_pval * 2
 
 	return pval_both
-

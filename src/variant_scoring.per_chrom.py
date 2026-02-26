@@ -21,7 +21,7 @@ def main():
         raise OSError("Output directory does not exist")
 
     # load the model and variants
-    model = load_model_wrapper(args.model)
+    model = load_bpnet_model(args.model)
     variants_table = load_variant_table(args.list, args.schema)
     variants_table = variants_table.fillna('-')
     
@@ -35,11 +35,7 @@ def main():
         print("Chromosome variants table shape:", variants_table.shape)
 
     # infer input length
-    if args.lite:
-        input_len = model.input_shape[0][1]
-    else:
-        input_len = model.input_shape[1]
-
+    input_len = model.input_len
     print("Input length inferred from the model:", input_len)
 
     variants_table = variants_table.loc[variants_table.apply(lambda x: get_valid_variants(x.chr, x.pos, x.allele1, x.allele2, input_len, chrom_sizes_dict), axis=1)]

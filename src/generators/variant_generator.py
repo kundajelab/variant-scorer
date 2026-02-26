@@ -1,13 +1,12 @@
-from tensorflow.keras.utils import Sequence
 import pandas as pd
 import numpy as np
 import math
 import pyfaidx
 from utils import one_hot
-from deeplift.dinuc_shuffle import dinuc_shuffle
+from utils.dinuc_shuffle import dinuc_shuffle
 
 
-class VariantGenerator(Sequence):
+class VariantGenerator:
     def __init__(self,
                  variants_table,
                  input_len,

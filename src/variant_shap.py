@@ -1,23 +1,11 @@
 import pandas as pd
 import numpy as np
 import os
-import argparse
-import scipy.stats
-from scipy.spatial.distance import jensenshannon
-from tensorflow.keras.utils import get_custom_objects
-from tensorflow.keras.models import load_model
-import tensorflow as tf
 import h5py
-import math
-from generators.variant_generator import VariantGenerator
-from generators.peak_generator import PeakGenerator
-from utils import argmanager, losses
+from utils import argmanager
 from utils.helpers import *
 from utils.io import *
-import shap
 from utils.shap_utils import *
-import deepdish as dd
-tf.compat.v1.disable_v2_behavior()
 
 
 def main():
@@ -31,7 +19,7 @@ def main():
     if not os.path.exists(out_dir):
         raise OSError("Output directory does not exist")
 
-    model = load_model_wrapper(args.model)
+    model = load_bpnet_model(args.model)
     variants_table = load_variant_table(args.list, args.schema)
     variants_table = variants_table.fillna('-')
 
@@ -43,10 +31,7 @@ def main():
         print(variants_table.head())
 
     # infer input length
-    if args.lite:
-        input_len = model.input_shape[0][1]
-    else:
-        input_len = model.input_shape[1]
+    input_len = model.input_len
     print("input length inferred from the model: ", input_len)
 
     print(variants_table.shape)
@@ -75,7 +60,7 @@ def main():
         for i in range(num_batches):
             sub_table=variants_table[i*batch_size:(i+1)*batch_size]
             var_ids, allele1_inputs, allele2_inputs, \
-            allele1_shap, allele2_shap = fetch_shap(model,
+            allele1_shap, allele2_shap = fetch_shap(model.bpnet,
                                                     sub_table,
                                                     input_len,
                                                     args.genome,
@@ -106,7 +91,7 @@ def main():
         if len(variants_table)%batch_size != 0:
             sub_table=variants_table[num_batches*batch_size:len(variants_table)]
             var_ids, allele1_inputs, allele2_inputs, \
-            allele1_shap, allele2_shap = fetch_shap(model,
+            allele1_shap, allele2_shap = fetch_shap(model.bpnet,
                                                                     sub_table,
                                                                     input_len,
                                                                     args.genome,
@@ -144,23 +129,32 @@ def main():
         assert(allele2_seqs.shape==allele2_scores.shape)
         assert(allele1_seqs.shape==allele2_seqs.shape)
         assert(allele1_scores.shape==allele2_scores.shape)
-        assert(allele1_seqs.shape[2]==4)
+        assert(allele1_seqs.shape[1]==4)
         assert(len(allele1_seqs==len(variant_ids)))
-        
-        shap_dict = {
-            'raw': {'seq': np.concatenate((np.transpose(allele1_seqs, (0, 2, 1)).astype(np.int8),
-                                           np.transpose(allele2_seqs, (0, 2, 1)).astype(np.int8)))},
-            'shap': {'seq': np.concatenate((np.transpose(allele1_scores, (0, 2, 1)).astype(np.float16),
-                                            np.transpose(allele2_scores, (0, 2, 1)).astype(np.float16)))},
-            'projected_shap': {'seq': np.concatenate((np.transpose(allele1_seqs * allele1_scores, (0, 2, 1)).astype(np.float16),
-                                                      np.transpose(allele2_seqs * allele2_scores, (0, 2, 1)).astype(np.float16)))},
-            'variant_ids': np.concatenate((np.array(variant_ids), np.array(variant_ids))),
-            'alleles': np.concatenate((np.array([0] * len(variant_ids)),
-                                       np.array([1] * len(variant_ids))))}
 
-        dd.io.save(''.join([args.out_prefix, ".variant_shap.%s.h5"%shap_type]),
-                   shap_dict,
-                   compression='blosc')
+        all_variant_ids = np.concatenate((np.array(variant_ids), np.array(variant_ids)))
+        all_alleles = np.concatenate((np.array([0] * len(variant_ids)),
+                                      np.array([1] * len(variant_ids))))
+
+        out_file = ''.join([args.out_prefix, ".variant_shap.%s.h5" % shap_type])
+        with h5py.File(out_file, 'w') as f:
+            raw = f.create_group('raw')
+            raw.create_dataset('seq', data=np.concatenate((allele1_seqs.astype(np.int8),
+                                                           allele2_seqs.astype(np.int8))),
+                               compression='gzip', compression_opts=9)
+            shap_grp = f.create_group('shap')
+            shap_grp.create_dataset('seq', data=np.concatenate((allele1_scores.astype(np.float16),
+                                                                 allele2_scores.astype(np.float16))),
+                                    compression='gzip', compression_opts=9)
+            proj = f.create_group('projected_shap')
+            proj.create_dataset('seq', data=np.concatenate(((allele1_seqs * allele1_scores).astype(np.float16),
+                                                             (allele2_seqs * allele2_scores).astype(np.float16))),
+                                compression='gzip', compression_opts=9)
+            f.create_dataset('variant_ids',
+                             data=all_variant_ids.astype(h5py.string_dtype()),
+                             compression='gzip', compression_opts=9)
+            f.create_dataset('alleles', data=all_alleles,
+                             compression='gzip', compression_opts=9)
 
     print("DONE")
 

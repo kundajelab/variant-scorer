@@ -34,19 +34,22 @@ def dna_to_one_hot(seqs):
     _, base_inds = np.unique(base_vals, return_inverse=True)
 
     # Get the one-hot encoding for those indices, and reshape back to separate
-    return one_hot_map[base_inds[:-4]].reshape((len(seqs), seq_len, 4))
+    # Transpose to channels-first (N, 4, L) for PyTorch compatibility
+    return one_hot_map[base_inds[:-4]].reshape((len(seqs), seq_len, 4)).transpose(0, 2, 1)
 
 
 def one_hot_to_dna(one_hot):
     """
     Converts a one-hot encoding into a list of DNA ("ACGT") sequences, where the
     position of 1s is ordered alphabetically by "ACGT". `one_hot` must be an
-    N x L x 4 array of one-hot encodings. Returns a lits of N "ACGT" strings,
-    each of length L, in the same order as the input array. The returned
-    sequences will only consist of letters "A", "C", "G", "T", or "N" (all
-    upper-case). Any encodings that are all 0s will be translated to "N".
+    N x 4 x L array of one-hot encodings (channels-first). Returns a list of N
+    "ACGT" strings, each of length L, in the same order as the input array. The
+    returned sequences will only consist of letters "A", "C", "G", "T", or "N"
+    (all upper-case). Any encodings that are all 0s will be translated to "N".
     """
     bases = np.array(["A", "C", "G", "T", "N"])
+    # Transpose to (N, L, 4) for indexing
+    one_hot = one_hot.transpose(0, 2, 1)
     # Create N x L array of all 5s
     one_hot_inds = np.tile(one_hot.shape[2], one_hot.shape[:2])
 

@@ -1,4 +1,3 @@
-from tensorflow.keras.utils import Sequence
 import pandas as pd
 import numpy as np
 import math
@@ -6,7 +5,7 @@ import pyfaidx
 from utils import one_hot
 
 
-class PeakGenerator(Sequence):
+class PeakGenerator:
     def __init__(self,
                  peaks,
                  input_len,
