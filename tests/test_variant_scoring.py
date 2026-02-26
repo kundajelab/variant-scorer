@@ -3,7 +3,10 @@ import subprocess
 import tempfile
 import os
 import sys
+import importlib.util
+import numpy as np
 import pandas as pd
+import h5py
 from pathlib import Path
 
 class TestVariantScoringCLI:
@@ -248,7 +251,7 @@ class TestVariantScoringCLI:
 	@pytest.mark.gpu
 	@pytest.mark.oak
 	def test_merge_chroms(self, out_dir, script_path_per_chrom, test_data_dir, genome_path, model_paths, chrom_sizes_path):
-		"""Test variant_scoring.per_chrom.py with real genome/model data (requires env vars and GPU)"""
+		"""Test variant_scoring.per_chrom.py merges scores/predictions successfully with real genome/model data (requires env vars and GPU)"""
 		if not os.path.exists(script_path_per_chrom):
 			pytest.skip(f"Script {script_path_per_chrom} not found")
 		
@@ -260,12 +263,9 @@ class TestVariantScoringCLI:
 		input_df = pd.read_csv(test_variants, sep='\t', header=None)
 		chrms = input_df[0].unique()
 
-		# Dictionary of number of variants per chromosome
-		variant_counts = input_df[0].value_counts().to_dict()
-
 		# Run for fold 0
 		model_path = model_paths[0]
-		output_prefix = os.path.join(out_dir, f"merged_fold_0")
+		output_prefix = os.path.join(out_dir, f"with_merge_fold_0")
 
 		cmd = [
 			sys.executable, script_path_per_chrom,
@@ -276,7 +276,6 @@ class TestVariantScoringCLI:
 			'--chrom_sizes', chrom_sizes_path,
 			'--num_shuf', '2',  # Use a small number for testing
 			'--schema', 'chrombpnet',
-			'--no_hdf5',  # Skip HDF5 output for faster testing
 			"--merge"
 		]
 			
@@ -289,7 +288,7 @@ class TestVariantScoringCLI:
 		# Check if it completed successfully
 		assert result.returncode == 0, f"Script failed: {result.stderr}"
 
-		# Load file
+		# Load variant scores
 		output_file = f"{output_prefix}.variant_scores.tsv"
 		df = pd.read_csv(output_file, sep='\t')
 
@@ -299,3 +298,92 @@ class TestVariantScoringCLI:
 		# Check number of variants
 		input_df = pd.read_csv(test_variants, sep='\t', header=None)
 		assert len(df) == len(input_df), "Merged output has different number of variants than input"
+
+		# Load predictions & check h5 format and shape
+		output_h5 = f"{output_prefix}.variant_predictions.h5"
+		with h5py.File(output_h5, 'r') as f:
+			
+			assert "observed" in f, "No 'observed' group in predictions file"
+			observed = f["observed"]
+			assert "allele1_pred_counts" in observed, "No 'allele1_pred_counts' dataset in predictions file"
+			assert "allele2_pred_counts" in observed, "No 'allele2_pred_counts' dataset in predictions file"
+			assert "allele1_pred_profiles" in observed, "No 'allele1_pred_profiles' dataset in predictions file"
+			assert "allele2_pred_profiles" in observed, "No 'allele2_pred_profiles' dataset in predictions file"
+
+			assert observed["allele1_pred_counts"].shape[0] == len(df), f"Predictions have {observed['allele1_pred_counts'].shape[0]} variants, expected {len(df)}"
+			assert observed["allele1_pred_profiles"].shape[0] == len(df), f"Predictions have {observed['allele1_pred_profiles'].shape[0]} variants, expected {len(df)}"
+
+
+class TestMergeH5Predictions:
+	"""Unit tests for merge_h5_predictions() — no GPU or Oak data required."""
+
+	@pytest.fixture(scope="class")
+	def merge_fn(self, src):
+		"""Import merge_h5_predictions from utils.merge."""
+		spec = importlib.util.spec_from_file_location(
+			"merge",
+			os.path.join(src, "utils", "merge.py")
+		)
+		mod = importlib.util.module_from_spec(spec)
+		spec.loader.exec_module(mod)
+		return mod.merge_h5_predictions
+
+	def _write_chrom_h5(self, path, n_variants, profile_len=100):
+		"""Write a synthetic per-chromosome H5 in the expected format."""
+		with h5py.File(path, 'w') as f:
+			obs = f.create_group('observed')
+			obs.create_dataset('allele1_pred_counts',  data=np.random.rand(n_variants))
+			obs.create_dataset('allele2_pred_counts',  data=np.random.rand(n_variants))
+			obs.create_dataset('allele1_pred_profiles', data=np.random.rand(n_variants, profile_len))
+			obs.create_dataset('allele2_pred_profiles', data=np.random.rand(n_variants, profile_len))
+
+	def test_merge_combines_chroms(self, merge_fn, tmp_path):
+		"""Merged file contains all four datasets concatenated across chromosomes."""
+		counts = [5, 7, 3]
+		chrom_files = []
+		for i, n in enumerate(counts):
+			p = str(tmp_path / f"out.chr{i+1}.variant_predictions.h5")
+			self._write_chrom_h5(p, n)
+			chrom_files.append(p)
+
+		merged = str(tmp_path / "out.variant_predictions.h5")
+		merge_fn(chrom_files, merged)
+
+		total = sum(counts)
+		with h5py.File(merged, 'r') as f:
+			assert 'observed' in f
+			obs = f['observed']
+			for key in ['allele1_pred_counts', 'allele2_pred_counts',
+						'allele1_pred_profiles', 'allele2_pred_profiles']:
+				assert key in obs, f"Missing dataset: {key}"
+			assert obs['allele1_pred_counts'].shape[0]   == total
+			assert obs['allele2_pred_counts'].shape[0]   == total
+			assert obs['allele1_pred_profiles'].shape[0] == total
+			assert obs['allele2_pred_profiles'].shape[0] == total
+
+	def test_merge_deletes_chrom_files(self, merge_fn, tmp_path):
+		"""Per-chromosome H5 files are deleted after merging."""
+		counts = [4, 6]
+		chrom_files = []
+		for i, n in enumerate(counts):
+			p = str(tmp_path / f"del.chr{i+1}.variant_predictions.h5")
+			self._write_chrom_h5(p, n)
+			chrom_files.append(p)
+
+		merged = str(tmp_path / "del.variant_predictions.h5")
+		merge_fn(chrom_files, merged)
+
+		for f in chrom_files:
+			assert not os.path.exists(f), f"Expected {f} to be deleted after merge"
+
+	def test_merge_missing_file_skipped(self, merge_fn, tmp_path):
+		"""A missing per-chrom file is skipped gracefully and the rest are merged."""
+		p_exists = str(tmp_path / "skip.chr1.variant_predictions.h5")
+		p_missing = str(tmp_path / "skip.chr2.variant_predictions.h5")
+		self._write_chrom_h5(p_exists, 5)
+
+		merged = str(tmp_path / "skip.variant_predictions.h5")
+		merge_fn([p_exists, p_missing], merged)
+
+		with h5py.File(merged, 'r') as f:
+			assert f['observed']['allele1_pred_counts'].shape[0] == 5
