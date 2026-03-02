@@ -162,7 +162,7 @@ def main():
                 shuf_variants_table["jsd"] = shuf_adjusted_jsd_list
             else:
                 shuf_variants_table["jsd"] = shuf_jsd
-                assert np.array_equal(shuf_adjusted_jsd_list, shuf_jsd)
+                assert np.array_equal(shuf_adjusted_jsd_list, shuf_jsd, equal_nan=True)
             shuf_variants_table['original_jsd'] = shuf_jsd
             shuf_variants_table["logfc_x_jsd"] =  shuf_variants_table["logfc"] * shuf_variants_table["jsd"]
             shuf_variants_table["abs_logfc_x_jsd"] = shuf_variants_table["abs_logfc"] * shuf_variants_table["jsd"]
@@ -207,7 +207,7 @@ def main():
                 shuf_variants_table["jsd"] = shuf_adjusted_jsd_list
             else:
                 shuf_variants_table["jsd"] = shuf_jsd
-                assert np.array_equal(shuf_adjusted_jsd_list, shuf_jsd)
+                assert np.array_equal(shuf_adjusted_jsd_list, shuf_jsd, equal_nan=True)
             shuf_variants_table['original_jsd'] = shuf_jsd
             shuf_variants_table["logfc_x_jsd"] =  shuf_variants_table["logfc"] * shuf_variants_table["jsd"]
             shuf_variants_table["abs_logfc_x_jsd"] = shuf_variants_table["abs_logfc"] * shuf_variants_table["jsd"]
@@ -229,7 +229,7 @@ def main():
         print(chrom)
         print()
 
-        chrom_variants_table = variants_table.loc[variants_table['chr'] == chrom].sort_values(by='pos').copy()
+        chrom_variants_table = variants_table.loc[variants_table['chr'] == chrom].sort_values(by=['pos', 'allele1', 'allele2', 'variant_id']).copy()
         chrom_variants_table.reset_index(drop=True, inplace=True)
 
         chrom_scores_done = False

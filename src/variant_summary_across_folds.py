@@ -24,7 +24,7 @@ def main():
             raise FileNotFoundError(f"Variant score file not found: {variant_score_file}")
         
         var_score = pd.read_table(variant_score_file)
-        score_dict[i] = var_score
+        score_dict[i] = var_score.sort_values('variant_id').reset_index(drop=True)
 
     variant_scores = score_dict[0][get_variant_schema(args.schema)].copy()
     for i in score_dict:
